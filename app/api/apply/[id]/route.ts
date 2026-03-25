@@ -443,6 +443,13 @@ export async function POST(
             .single();
 
         if (applicationError || !applicationData) {
+            if (applicationError?.code === "23505") {
+                return NextResponse.json(
+                    { success: false, error: "An application with this email already exists for this interview" },
+                    { status: 409 }
+                );
+            }
+
             return NextResponse.json({ success: false, error: "Failed to register application" }, { status: 500 });
         }
 
