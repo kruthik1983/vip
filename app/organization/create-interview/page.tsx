@@ -64,7 +64,6 @@ export default function CreateInterviewPage() {
     async function handleSavePart1() {
         setErrorMessage(null);
 
-        // ===== CLIENT-SIDE VALIDATION =====
         if (!jobDetails.positionTitle.trim()) {
             setErrorMessage("Job position title is required.");
             return;
@@ -102,7 +101,6 @@ export default function CreateInterviewPage() {
                 return;
             }
 
-            // Build UTC datetime strings for campaign window
             const campaignStartDateTime = new Date(`${jobDetails.campaignStartDate}T${jobDetails.campaignStartTime}:00Z`);
             const campaignEndDateTime = new Date(`${jobDetails.campaignEndDate}T${jobDetails.campaignEndTime}:00Z`);
 
@@ -131,7 +129,6 @@ export default function CreateInterviewPage() {
                 return;
             }
 
-            // Redirect to Part 2
             router.push(`/organization/create-interview/part-2?interviewId=${result.data?.interviewId}`);
         } catch (error) {
             setErrorMessage("An error occurred while saving Part 1. Please try again.");
@@ -142,196 +139,78 @@ export default function CreateInterviewPage() {
 
     if (isLoading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-[#070b16] text-white">
-                <p className="text-sm text-slate-300">Loading...</p>
+            <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f3f9f7] text-slate-900">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(16,185,129,0.18),transparent_35%),radial-gradient(circle_at_84%_16%,rgba(56,189,248,0.18),transparent_35%),radial-gradient(circle_at_50%_100%,rgba(20,184,166,0.10),transparent_44%)]" />
+                <div className="relative rounded-2xl border border-slate-200 bg-white/85 px-6 py-4 shadow-lg backdrop-blur"><p className="text-sm text-slate-600">Loading...</p></div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#070b16] px-6 py-10 text-white lg:px-10">
-            <div className="mx-auto max-w-3xl space-y-6">
-                {/* Header */}
-                <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl sm:p-8">
-                    <p className="text-xs uppercase tracking-[0.18em] text-cyan-200">Step 1 of 3</p>
-                    <h1 className="mt-2 text-3xl font-semibold">Job Details & Interview Window</h1>
-                    <p className="mt-2 text-sm text-slate-400">
-                        Configure the job position and the time window for generating assessment/interview slots.
-                    </p>
+        <div className="relative min-h-screen overflow-hidden bg-[#f3f9f7] px-6 py-10 text-slate-900 lg:px-10">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(16,185,129,0.18),transparent_35%),radial-gradient(circle_at_84%_16%,rgba(56,189,248,0.18),transparent_35%),radial-gradient(circle_at_50%_100%,rgba(20,184,166,0.10),transparent_44%)]" />
+            <div className="relative mx-auto max-w-4xl space-y-6">
+                <div className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_20px_70px_-34px_rgba(15,23,42,0.35)] sm:p-8">
+                    <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">Step 1 of 3</p>
+                    <h1 className="mt-2 text-3xl font-semibold">Job Details and Interview Window</h1>
+                    <p className="mt-2 text-sm text-slate-600">Configure role details and campaign timeline for slot generation.</p>
                 </div>
 
-                {/* Error Message */}
-                {errorMessage ? (
-                    <div className="rounded-xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
-                        {errorMessage}
-                    </div>
-                ) : null}
+                {errorMessage ? <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{errorMessage}</div> : null}
 
-                {/* Form */}
-                <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl sm:p-8 space-y-5">
-                    {/* Position Title */}
+                <div className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_20px_70px_-34px_rgba(15,23,42,0.25)] sm:p-8 space-y-5">
                     <div>
-                        <label className="block text-sm font-semibold text-white mb-2">
-                            Job Position Title <span className="text-rose-400">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            placeholder="e.g., Senior Software Engineer"
-                            value={jobDetails.positionTitle}
-                            onChange={(e) =>
-                                setJobDetails({ ...jobDetails, positionTitle: e.target.value })
-                            }
-                            className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white placeholder-slate-400 transition focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30"
-                        />
+                        <label className="mb-2 block text-sm font-semibold text-slate-800">Job Position Title</label>
+                        <input type="text" placeholder="e.g., Senior Software Engineer" value={jobDetails.positionTitle} onChange={(e) => setJobDetails({ ...jobDetails, positionTitle: e.target.value })} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 placeholder-slate-400 transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30" />
                     </div>
 
-                    {/* Job Description */}
                     <div>
-                        <label className="block text-sm font-semibold text-white mb-2">
-                            Job Description <span className="text-rose-400">*</span>
-                        </label>
-                        <textarea
-                            placeholder="Describe the job role, responsibilities, and requirements..."
-                            value={jobDetails.jobDescription}
-                            onChange={(e) =>
-                                setJobDetails({ ...jobDetails, jobDescription: e.target.value })
-                            }
-                            rows={4}
-                            className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white placeholder-slate-400 transition focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30 resize-none"
-                        />
+                        <label className="mb-2 block text-sm font-semibold text-slate-800">Job Description</label>
+                        <textarea placeholder="Describe role, responsibilities, and requirements" value={jobDetails.jobDescription} onChange={(e) => setJobDetails({ ...jobDetails, jobDescription: e.target.value })} rows={4} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 placeholder-slate-400 transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30 resize-none" />
                     </div>
 
-                    {/* Skills Required */}
                     <div>
-                        <label className="block text-sm font-semibold text-white mb-2">
-                            Skills Required <span className="text-rose-400">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            placeholder="e.g., React, Node.js, PostgreSQL (comma-separated)"
-                            value={jobDetails.skillsRequired}
-                            onChange={(e) =>
-                                setJobDetails({ ...jobDetails, skillsRequired: e.target.value })
-                            }
-                            className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white placeholder-slate-400 transition focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30"
-                        />
+                        <label className="mb-2 block text-sm font-semibold text-slate-800">Skills Required</label>
+                        <input type="text" placeholder="React, Node.js, PostgreSQL" value={jobDetails.skillsRequired} onChange={(e) => setJobDetails({ ...jobDetails, skillsRequired: e.target.value })} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 placeholder-slate-400 transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30" />
                     </div>
 
-                    {/* CTC Range */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-semibold text-white mb-2">
-                                CTC Min (₹) <span className="text-rose-400">*</span>
-                            </label>
-                            <input
-                                type="number"
-                                placeholder="e.g., 500000"
-                                value={jobDetails.ctcMin}
-                                onChange={(e) =>
-                                    setJobDetails({ ...jobDetails, ctcMin: e.target.value })
-                                }
-                                className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white placeholder-slate-400 transition focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30"
-                            />
+                            <label className="mb-2 block text-sm font-semibold text-slate-800">CTC Min (Rs)</label>
+                            <input type="number" placeholder="500000" value={jobDetails.ctcMin} onChange={(e) => setJobDetails({ ...jobDetails, ctcMin: e.target.value })} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 placeholder-slate-400 transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30" />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-white mb-2">
-                                CTC Max (₹) <span className="text-rose-400">*</span>
-                            </label>
-                            <input
-                                type="number"
-                                placeholder="e.g., 1000000"
-                                value={jobDetails.ctcMax}
-                                onChange={(e) =>
-                                    setJobDetails({ ...jobDetails, ctcMax: e.target.value })
-                                }
-                                className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white placeholder-slate-400 transition focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30"
-                            />
+                            <label className="mb-2 block text-sm font-semibold text-slate-800">CTC Max (Rs)</label>
+                            <input type="number" placeholder="1000000" value={jobDetails.ctcMax} onChange={(e) => setJobDetails({ ...jobDetails, ctcMax: e.target.value })} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 placeholder-slate-400 transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30" />
                         </div>
                     </div>
 
-                    {/* Interview Window (Campaign Timeframe) */}
-                    <div className="border-t border-white/10 pt-5">
-                        <h3 className="text-sm font-semibold text-white mb-4">
-                            Interview Window <span className="text-rose-400">*</span>
-                        </h3>
-                        <p className="text-xs text-slate-400 mb-4">
-                            The date/time range for creating assessment and interview slots. Slots will be generated within this window.
-                        </p>
-                        <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="border-t border-slate-200 pt-5">
+                        <h3 className="mb-4 text-sm font-semibold text-slate-900">Interview Window</h3>
+                        <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-medium text-slate-300 mb-2">
-                                    Start Date
-                                </label>
-                                <input
-                                    type="date"
-                                    value={jobDetails.campaignStartDate}
-                                    onChange={(e) =>
-                                        setJobDetails({ ...jobDetails, campaignStartDate: e.target.value })
-                                    }
-                                    className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white transition focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30"
-                                />
+                                <label className="mb-2 block text-xs font-medium text-slate-600">Start Date</label>
+                                <input type="date" value={jobDetails.campaignStartDate} onChange={(e) => setJobDetails({ ...jobDetails, campaignStartDate: e.target.value })} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30" />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-slate-300 mb-2">
-                                    Start Time (24h, UTC)
-                                </label>
-                                <input
-                                    type="time"
-                                    value={jobDetails.campaignStartTime}
-                                    onChange={(e) =>
-                                        setJobDetails({ ...jobDetails, campaignStartTime: e.target.value })
-                                    }
-                                    className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white transition focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30"
-                                />
+                                <label className="mb-2 block text-xs font-medium text-slate-600">Start Time (24h, UTC)</label>
+                                <input type="time" value={jobDetails.campaignStartTime} onChange={(e) => setJobDetails({ ...jobDetails, campaignStartTime: e.target.value })} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30" />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-slate-300 mb-2">
-                                    End Date
-                                </label>
-                                <input
-                                    type="date"
-                                    value={jobDetails.campaignEndDate}
-                                    onChange={(e) =>
-                                        setJobDetails({ ...jobDetails, campaignEndDate: e.target.value })
-                                    }
-                                    className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white transition focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30"
-                                />
+                                <label className="mb-2 block text-xs font-medium text-slate-600">End Date</label>
+                                <input type="date" value={jobDetails.campaignEndDate} onChange={(e) => setJobDetails({ ...jobDetails, campaignEndDate: e.target.value })} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30" />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-slate-300 mb-2">
-                                    End Time (24h, UTC)
-                                </label>
-                                <input
-                                    type="time"
-                                    value={jobDetails.campaignEndTime}
-                                    onChange={(e) =>
-                                        setJobDetails({ ...jobDetails, campaignEndTime: e.target.value })
-                                    }
-                                    className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white transition focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30"
-                                />
+                                <label className="mb-2 block text-xs font-medium text-slate-600">End Time (24h, UTC)</label>
+                                <input type="time" value={jobDetails.campaignEndTime} onChange={(e) => setJobDetails({ ...jobDetails, campaignEndTime: e.target.value })} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30" />
                             </div>
                         </div>
-                        <p className="text-xs text-slate-400">
-                            Assessment slots (20 min) and interview slots (40 min) will both be generated within this window in Part 2.
-                        </p>
                     </div>
                 </div>
 
-                {/* Action Buttons */}
                 <div className="flex gap-3">
-                    <Link
-                        href="/organization"
-                        className="inline-flex rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-                    >
-                        Cancel
-                    </Link>
-                    <button
-                        onClick={handleSavePart1}
-                        disabled={isSaving}
-                        className="ml-auto inline-flex rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-400 px-6 py-2 text-sm font-semibold text-[#041022] transition hover:shadow-lg hover:shadow-cyan-500/30 disabled:opacity-70"
-                    >
-                        {isSaving ? "Saving..." : "Next: Part 2"}
-                    </button>
+                    <Link href="/organization" className="inline-flex rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50">Cancel</Link>
+                    <button onClick={handleSavePart1} disabled={isSaving} className="ml-auto inline-flex rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 px-6 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-70">{isSaving ? "Saving..." : "Next: Part 2"}</button>
                 </div>
             </div>
         </div>

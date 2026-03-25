@@ -33,6 +33,11 @@ type AssessmentData = {
     questions: AssessmentQuestion[];
 };
 
+type AssessmentErrorPayload = {
+    opensAt?: string;
+    serverNow?: string;
+};
+
 function CandidateAssessmentContent() {
     const searchParams = useSearchParams();
     const token = useMemo(() => searchParams.get("token")?.trim() || "", [searchParams]);
@@ -53,6 +58,7 @@ function CandidateAssessmentContent() {
     const [isReviewPageOpen, setIsReviewPageOpen] = useState(false);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [hasAutoSubmittedOnExpiry, setHasAutoSubmittedOnExpiry] = useState(false);
+    const [assessmentOpensAt, setAssessmentOpensAt] = useState<string | null>(null);
 
     useEffect(() => {
         let mounted = true;
@@ -77,12 +83,15 @@ function CandidateAssessmentContent() {
 
             if (!response.ok || !result.success) {
                 setErrorMessage(result.error ?? "Failed to load assessment");
+                const payload = (result.data ?? {}) as AssessmentErrorPayload;
+                setAssessmentOpensAt(payload.opensAt ?? null);
                 setIsLoading(false);
                 return;
             }
 
             const loadedData = result.data as AssessmentData;
             setData(loadedData);
+            setAssessmentOpensAt(null);
             setAnswers(loadedData.selectedAnswers ?? {});
             setHasUnsavedChanges(false);
             setCurrentQuestionIndex(0);
@@ -229,8 +238,33 @@ function CandidateAssessmentContent() {
         return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
     }
 
+    function formatCountdownClock(remainingMs: number) {
+        const totalSeconds = Math.max(0, Math.floor(remainingMs / 1000));
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        if (hours > 0) {
+            return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+        }
+
+        return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+
+    function getQuestionProgressWidthClass(currentIndex: number, total: number) {
+        if (total <= 0) return "w-0";
+        const percent = ((currentIndex + 1) / total) * 100;
+        if (percent <= 10) return "w-[10%]";
+        if (percent <= 25) return "w-1/4";
+        if (percent <= 50) return "w-1/2";
+        if (percent <= 75) return "w-3/4";
+        return "w-full";
+    }
+
     const sessionValidUntilMs = data?.sessionValidUntil ? new Date(data.sessionValidUntil).getTime() : null;
     const remainingMs = sessionValidUntilMs ? sessionValidUntilMs - nowMs : null;
+    const opensAtMs = assessmentOpensAt ? new Date(assessmentOpensAt).getTime() : null;
+    const opensInMs = opensAtMs ? opensAtMs - nowMs : null;
     const isExpired = !data?.submittedAt && remainingMs !== null && remainingMs <= 0;
     const isWarning = !data?.submittedAt && remainingMs !== null && remainingMs > 0 && remainingMs <= 5 * 60 * 1000;
 
@@ -367,88 +401,111 @@ function CandidateAssessmentContent() {
 
     if (isLoading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-[#070b16] text-white">
-                <p className="text-sm text-slate-300">Loading assessment...</p>
+            <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#fff8ee] text-slate-900">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_12%,rgba(20,184,166,0.18),transparent_35%),radial-gradient(circle_at_86%_20%,rgba(245,158,11,0.2),transparent_32%)]" />
+                <p className="relative rounded-xl border border-slate-200 bg-white/90 px-4 py-2 text-sm text-slate-700 shadow-sm">
+                    Loading assessment...
+                </p>
             </div>
         );
     }
 
     if (!data) {
         return (
-            <div className="min-h-screen bg-[#070b16] px-6 py-10 text-white lg:px-10">
-                <div className="mx-auto max-w-2xl rounded-xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
-                    {errorMessage ?? "Assessment unavailable"}
+            <div className="min-h-screen bg-[#fff8ee] px-6 py-10 text-slate-900 lg:px-10">
+                <div className="mx-auto max-w-2xl space-y-3">
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        {errorMessage ?? "Assessment unavailable"}
+                    </div>
+                    {opensAtMs && opensInMs !== null && opensInMs > 0 ? (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                            <p className="font-semibold">Assessment opens in: {formatCountdownClock(opensInMs)}</p>
+                            <p className="mt-1 text-xs text-amber-700">
+                                Opens at: {new Date(opensAtMs).toLocaleString("en-IN", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    second: "2-digit",
+                                    hour12: true,
+                                })}
+                            </p>
+                        </div>
+                    ) : null}
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#070b16] px-6 py-10 text-white lg:px-10">
-            <div className="mx-auto max-w-4xl space-y-6">
-                <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl sm:p-8">
-                    <p className="text-xs uppercase tracking-[0.18em] text-cyan-200">Candidate Assessment</p>
-                    <h1 className="mt-2 text-3xl font-semibold">{data.positionTitle ?? data.interviewTitle}</h1>
-                    <p className="mt-2 text-sm text-slate-300">Candidate: {data.candidateName}</p>
-                    <p className="mt-1 text-sm text-slate-300">Duration: {data.durationMinutes ?? "-"} minutes</p>
+        <div className="relative min-h-screen overflow-hidden bg-[#fff8ee] px-6 py-10 text-slate-900 lg:px-10">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_12%,rgba(20,184,166,0.18),transparent_35%),radial-gradient(circle_at_86%_20%,rgba(245,158,11,0.2),transparent_32%)]" />
+
+            <div className="relative mx-auto max-w-5xl space-y-6">
+                <div className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_20px_60px_-34px_rgba(15,23,42,0.45)] sm:p-8">
+                    <p className="text-xs uppercase tracking-[0.18em] text-teal-700">Candidate Assessment</p>
+                    <h1 className="mt-2 text-3xl font-semibold text-slate-900">{data.positionTitle ?? data.interviewTitle}</h1>
+                    <p className="mt-2 text-sm text-slate-600">Candidate: {data.candidateName}</p>
+                    <p className="mt-1 text-sm text-slate-600">Duration: {data.durationMinutes ?? "-"} minutes</p>
                     {!data.submittedAt && remainingMs !== null ? (
-                        <p className={`mt-2 text-sm font-semibold ${isExpired ? "text-rose-300" : isWarning ? "text-amber-200" : "text-emerald-200"}`}>
+                        <p className={`mt-2 text-sm font-semibold ${isExpired ? "text-rose-700" : isWarning ? "text-amber-700" : "text-emerald-700"}`}>
                             Time Left: {formatRemaining(remainingMs)}
                         </p>
                     ) : null}
                 </div>
 
                 {isWarning ? (
-                    <div className="rounded-xl border border-amber-300/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                         Less than 5 minutes remaining. Please review quickly and submit.
                     </div>
                 ) : null}
 
                 {isExpired ? (
-                    <div className="rounded-xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                         Assessment time has expired. Refresh to view latest status.
                     </div>
                 ) : null}
 
                 {errorMessage ? (
-                    <div className="rounded-xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                         {errorMessage}
                     </div>
                 ) : null}
 
                 {successMessage ? (
-                    <div className="rounded-xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                         {successMessage}
                     </div>
                 ) : null}
 
                 {data.submittedAt ? (
-                    <div className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 p-6 backdrop-blur-xl">
-                        <h2 className="text-lg font-semibold text-emerald-100">Assessment Submitted</h2>
-                        <p className="mt-2 text-sm text-emerald-200">
+                    <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6">
+                        <h2 className="text-lg font-semibold text-emerald-900">Assessment Submitted</h2>
+                        <p className="mt-2 text-sm text-emerald-800">
                             Score: {data.result?.score ?? "-"}% ({data.result?.correctAnswers ?? "-"}/{data.result?.totalQuestions ?? "-"})
                         </p>
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        <div className="rounded-2xl border border-white/15 bg-white/5 p-5 backdrop-blur-xl">
-                            <p className="text-xs uppercase tracking-[0.14em] text-slate-300">Assessment Overview</p>
+                        <div className="rounded-3xl border border-slate-200 bg-white/92 p-5 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]">
+                            <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Assessment Overview</p>
                             <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                                <p className="rounded-lg border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-200">
+                                <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
                                     Attempted: {attemptedCount}
                                 </p>
-                                <p className="rounded-lg border border-amber-300/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
+                                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
                                     Marked For Review: {reviewCount}
                                 </p>
-                                <p className="rounded-lg border border-slate-300/30 bg-slate-400/10 px-3 py-2 text-xs text-slate-200">
+                                <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700">
                                     Not Attempted: {notAttemptedCount}
                                 </p>
                             </div>
 
-                            <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-300">
-                                <span className="rounded border border-emerald-300/30 bg-emerald-400/10 px-2 py-1">Attempted</span>
-                                <span className="rounded border border-amber-300/30 bg-amber-400/10 px-2 py-1">Review</span>
-                                <span className="rounded border border-slate-300/30 bg-slate-400/10 px-2 py-1">Not Attempted</span>
+                            <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-600">
+                                <span className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1">Attempted</span>
+                                <span className="rounded border border-amber-200 bg-amber-50 px-2 py-1">Review</span>
+                                <span className="rounded border border-slate-200 bg-slate-50 px-2 py-1">Not Attempted</span>
                             </div>
 
                             <div className="mt-3 flex flex-wrap gap-2">
@@ -457,17 +514,17 @@ function CandidateAssessmentContent() {
                                     const isMarked = markedForReview.includes(q.id);
                                     const isActive = !isReviewPageOpen && currentQuestion?.id === q.id;
                                     const className = isMarked
-                                        ? "border-amber-300/40 bg-amber-400/10 text-amber-100"
+                                        ? "border-amber-200 bg-amber-50 text-amber-800"
                                         : isAttempted
-                                            ? "border-emerald-300/40 bg-emerald-400/10 text-emerald-200"
-                                            : "border-slate-300/30 bg-slate-400/10 text-slate-200";
+                                            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                                            : "border-slate-200 bg-slate-50 text-slate-700";
 
                                     return (
                                         <button
                                             key={`jump-${q.id}`}
                                             type="button"
                                             onClick={() => isReviewPageOpen ? editQuestionFromReview(q.id) : jumpToQuestion(q.id)}
-                                            className={`rounded border px-2 py-1 text-xs font-semibold ${className} ${isActive ? "ring-2 ring-cyan-300/60" : ""}`}
+                                            className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${className} ${isActive ? "ring-2 ring-teal-300" : ""}`}
                                         >
                                             Q{q.questionOrder}
                                         </button>
@@ -477,32 +534,31 @@ function CandidateAssessmentContent() {
                         </div>
 
                         {!isReviewPageOpen && currentQuestion ? (
-                            <div className="rounded-2xl border border-white/15 bg-white/5 p-5 backdrop-blur-xl">
+                            <div className="rounded-3xl border border-slate-200 bg-white/92 p-5 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]">
                                 <div className="mb-3 flex items-center justify-between">
-                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-200">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">
                                         Question {currentQuestionIndex + 1} of {totalQuestions}
                                     </p>
-                                    <div className="h-2 w-40 overflow-hidden rounded bg-white/10">
+                                    <div className="h-2 w-40 overflow-hidden rounded bg-slate-200">
                                         <div
-                                            className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400"
-                                            style={{ width: `${((currentQuestionIndex + 1) / Math.max(totalQuestions, 1)) * 100}%` }}
+                                            className={`h-full rounded bg-gradient-to-r from-amber-500 to-teal-500 transition-all ${getQuestionProgressWidthClass(currentQuestionIndex, Math.max(totalQuestions, 1))}`}
                                         />
                                     </div>
                                 </div>
-                                <p className="text-base font-semibold text-cyan-100">Q{currentQuestion.questionOrder}. {currentQuestion.questionText}</p>
+                                <p className="text-base font-semibold text-slate-900">Q{currentQuestion.questionOrder}. {currentQuestion.questionText}</p>
                                 <button
                                     type="button"
                                     disabled={isExpired || isSubmitting}
                                     onClick={() => toggleMarkForReview(currentQuestion.id)}
                                     className={`mt-2 rounded border px-2 py-1 text-xs font-semibold ${markedForReview.includes(currentQuestion.id)
-                                        ? "border-amber-300/40 bg-amber-400/10 text-amber-100"
-                                        : "border-white/20 bg-white/5 text-slate-200"}`}
+                                        ? "border-amber-200 bg-amber-50 text-amber-800"
+                                        : "border-slate-200 bg-slate-50 text-slate-700"}`}
                                 >
                                     {markedForReview.includes(currentQuestion.id) ? "Marked For Review" : "Mark For Review"}
                                 </button>
                                 <div className="mt-3 space-y-2">
                                     {currentQuestion.options.map((option) => (
-                                        <label key={`${currentQuestion.id}-${option.label}`} className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
+                                        <label key={`${currentQuestion.id}-${option.label}`} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
                                             <input
                                                 type="radio"
                                                 name={`question-${currentQuestion.id}`}
@@ -525,7 +581,7 @@ function CandidateAssessmentContent() {
                                         type="button"
                                         onClick={goToPreviousQuestion}
                                         disabled={currentQuestionIndex === 0 || isSubmitting || isSavingOnNext}
-                                        className="rounded border border-white/20 bg-white/5 px-4 py-2 text-sm text-slate-200 disabled:opacity-50"
+                                        className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 disabled:opacity-50"
                                     >
                                         Previous
                                     </button>
@@ -533,14 +589,14 @@ function CandidateAssessmentContent() {
                                         type="button"
                                         onClick={goToNextQuestion}
                                         disabled={currentQuestionIndex >= totalQuestions - 1 || isSubmitting || isSavingOnNext || isExpired || !isCurrentQuestionAnswered}
-                                        className="rounded bg-gradient-to-r from-emerald-500 to-cyan-400 px-4 py-2 text-sm font-semibold text-[#041022] disabled:opacity-60"
+                                        className="rounded-lg bg-gradient-to-r from-amber-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
                                     >
                                         {isSavingOnNext ? "Saving..." : "Save & Next"}
                                     </button>
                                 </div>
 
                                 {!isCurrentQuestionAnswered ? (
-                                    <p className="mt-2 text-xs text-amber-200">Select an option to enable Next.</p>
+                                    <p className="mt-2 text-xs text-amber-700">Select an option to enable Next.</p>
                                 ) : null}
 
                                 <div className="mt-3 flex justify-end">
@@ -548,7 +604,7 @@ function CandidateAssessmentContent() {
                                         type="button"
                                         onClick={openReviewPage}
                                         disabled={isSubmitting || isSavingOnNext || isExpired}
-                                        className="rounded border border-cyan-300/40 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-100 disabled:opacity-60"
+                                        className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-700 disabled:opacity-60"
                                     >
                                         Go To Review Page
                                     </button>
@@ -557,18 +613,18 @@ function CandidateAssessmentContent() {
                         ) : null}
 
                         {isReviewPageOpen ? (
-                            <div className="rounded-2xl border border-white/15 bg-white/5 p-5 backdrop-blur-xl">
-                                <h3 className="text-lg font-semibold text-cyan-100">Final Review Page</h3>
-                                <p className="mt-1 text-sm text-slate-300">Review all questions before final submission. Click any question to edit.</p>
+                            <div className="rounded-3xl border border-slate-200 bg-white/92 p-5 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]">
+                                <h3 className="text-lg font-semibold text-slate-900">Final Review Page</h3>
+                                <p className="mt-1 text-sm text-slate-600">Review all questions before final submission. Click any question to edit.</p>
 
                                 <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                                    <p className="rounded-lg border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-200">
+                                    <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
                                         Attempted: {attemptedCount}
                                     </p>
-                                    <p className="rounded-lg border border-amber-300/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
+                                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
                                         Marked For Review: {reviewCount}
                                     </p>
-                                    <p className="rounded-lg border border-slate-300/30 bg-slate-400/10 px-3 py-2 text-xs text-slate-200">
+                                    <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700">
                                         Not Attempted: {notAttemptedCount}
                                     </p>
                                 </div>
@@ -583,10 +639,10 @@ function CandidateAssessmentContent() {
                                                 key={`review-row-${q.id}`}
                                                 type="button"
                                                 onClick={() => editQuestionFromReview(q.id)}
-                                                className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-slate-200 hover:border-cyan-300/40"
+                                                className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-sm text-slate-700 hover:border-teal-300"
                                             >
                                                 <span>Q{q.questionOrder}. {q.questionText}</span>
-                                                <span className="ml-3 text-xs text-slate-300">
+                                                <span className="ml-3 text-xs text-slate-500">
                                                     {selected}{isMarked ? " | Review" : ""}
                                                 </span>
                                             </button>
@@ -598,7 +654,7 @@ function CandidateAssessmentContent() {
                                     <button
                                         type="button"
                                         onClick={() => setIsReviewPageOpen(false)}
-                                        className="rounded border border-white/20 bg-white/5 px-4 py-2 text-sm text-slate-200"
+                                        className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700"
                                     >
                                         Back To Questions
                                     </button>
@@ -608,7 +664,7 @@ function CandidateAssessmentContent() {
                                             void submitAssessment();
                                         }}
                                         disabled={isSubmitting || isExpired}
-                                        className="rounded bg-gradient-to-r from-emerald-500 to-cyan-400 px-4 py-2 text-sm font-semibold text-[#041022] disabled:opacity-70"
+                                        className="rounded-lg bg-gradient-to-r from-amber-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70"
                                     >
                                         {isSubmitting ? "Submitting..." : "Submit Assessment"}
                                     </button>
@@ -616,7 +672,7 @@ function CandidateAssessmentContent() {
                             </div>
                         ) : null}
 
-                        <p className="text-xs text-slate-400">
+                        <p className="text-xs text-slate-500">
                             {isAutoSaving
                                 ? "Autosaving..."
                                 : lastAutoSavedAt
@@ -633,7 +689,11 @@ function CandidateAssessmentContent() {
 export default function CandidateAssessmentPage() {
     return (
         <Suspense
-            fallback={<div className="flex min-h-screen items-center justify-center bg-[#070b16] text-white">Loading assessment...</div>}
+            fallback={
+                <div className="flex min-h-screen items-center justify-center bg-[#fff8ee] text-slate-700">
+                    Loading assessment...
+                </div>
+            }
         >
             <CandidateAssessmentContent />
         </Suspense>

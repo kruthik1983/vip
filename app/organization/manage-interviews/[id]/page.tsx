@@ -67,15 +67,8 @@ type InterviewDetails = {
     } | null;
 };
 
-const partNavItems = [
-    { id: "part-1", label: "Part 1: Job & Interview" },
-    { id: "part-2", label: "Part 2: Slots" },
-    { id: "part-3", label: "Part 3: Questions" },
-];
-
 function formatDateTime(value: string | null) {
     if (!value) return "-";
-
     return new Date(value).toLocaleString("en-IN", {
         day: "2-digit",
         month: "short",
@@ -110,35 +103,9 @@ function createEmptyFallbackQuestion(idSeed: number): FallbackQuestion {
     };
 }
 
-function PartHeader({
-    partLabel,
-    title,
-    description,
-    accentClass,
-}: {
-    partLabel: string;
-    title: string;
-    description?: string;
-    accentClass: string;
-}) {
-    return (
-        <div className="rounded-2xl border border-white/15 bg-gradient-to-r from-white/10 to-white/5 p-5 backdrop-blur-xl sm:p-6">
-            <div className="flex items-center gap-3">
-                <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${accentClass}`}>
-                    {partLabel}
-                </span>
-                <div className="h-px flex-1 bg-white/20" />
-            </div>
-            <h2 className="mt-3 text-xl font-semibold text-white">{title}</h2>
-            {description ? <p className="mt-1 text-sm text-slate-300">{description}</p> : null}
-        </div>
-    );
-}
-
 export default function ManageInterviewDetailPage() {
     const params = useParams<{ id: string }>();
     const router = useRouter();
-
     const interviewId = useMemo(() => Number(params?.id), [params]);
 
     const [isLoading, setIsLoading] = useState(true);
@@ -149,7 +116,7 @@ export default function ManageInterviewDetailPage() {
     const [details, setDetails] = useState<InterviewDetails | null>(null);
     const [assessmentQuestions, setAssessmentQuestions] = useState<AssessmentQuestion[]>([]);
     const [fallbackQuestions, setFallbackQuestions] = useState<FallbackQuestion[]>([]);
-    const [activePart, setActivePart] = useState("part-1");
+    const [questionSearch, setQuestionSearch] = useState("");
 
     useEffect(() => {
         let mounted = true;
@@ -159,10 +126,7 @@ export default function ManageInterviewDetailPage() {
             setErrorMessage(null);
 
             const currentAdmin = await getCurrentOrganizationAdmin();
-
-            if (!mounted) {
-                return;
-            }
+            if (!mounted) return;
 
             if (!currentAdmin) {
                 router.replace("/organization/organization_auth");
@@ -185,16 +149,11 @@ export default function ManageInterviewDetailPage() {
             }
 
             const response = await fetch(`/api/organization/interviews/manage/${interviewId}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                headers: { Authorization: `Bearer ${token}` },
             });
 
             const result = await response.json();
-
-            if (!mounted) {
-                return;
-            }
+            if (!mounted) return;
 
             if (!response.ok || !result.success) {
                 setErrorMessage(result.error ?? "Failed to load interview details");
@@ -210,43 +169,22 @@ export default function ManageInterviewDetailPage() {
         }
 
         void loadDetails();
-
         return () => {
             mounted = false;
         };
     }, [interviewId, router]);
 
-    useEffect(() => {
-        function handleScroll() {
-            let currentPart = "part-1";
+    const filteredAssessmentQuestions = useMemo(() => {
+        const query = questionSearch.trim().toLowerCase();
+        if (!query) return assessmentQuestions;
+        return assessmentQuestions.filter((q) => q.question_text.toLowerCase().includes(query));
+    }, [assessmentQuestions, questionSearch]);
 
-            for (const item of partNavItems) {
-                const section = document.getElementById(item.id);
-                if (!section) {
-                    continue;
-                }
-
-                const rect = section.getBoundingClientRect();
-                if (rect.top <= 140) {
-                    currentPart = item.id;
-                }
-            }
-
-            setActivePart((prev) => (prev === currentPart ? prev : currentPart));
-        }
-
-        handleScroll();
-        window.addEventListener("scroll", handleScroll, { passive: true });
-
-        return () => {
-            window.removeEventListener("scroll", handleScroll);
-        };
-    }, []);
-
-    function handlePartNavigation(partId: string) {
-        setActivePart(partId);
-        document.getElementById(partId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    const filteredFallbackQuestions = useMemo(() => {
+        const query = questionSearch.trim().toLowerCase();
+        if (!query) return fallbackQuestions;
+        return fallbackQuestions.filter((q) => q.question_text.toLowerCase().includes(query));
+    }, [fallbackQuestions, questionSearch]);
 
     async function handleSaveQuestions() {
         setErrorMessage(null);
@@ -310,7 +248,7 @@ export default function ManageInterviewDetailPage() {
                 return;
             }
 
-            setSuccessMessage("Questions updated successfully");
+            setSuccessMessage("Questions updated successfully.");
         } catch (error) {
             setErrorMessage("Failed to save changes");
             console.error(error);
@@ -369,294 +307,162 @@ export default function ManageInterviewDetailPage() {
         setFallbackQuestions((prev) => prev.filter((_, i) => i !== index));
     }
 
+    async function copyApplicationLink() {
+        if (!details?.applicationLink?.application_link) return;
+        await navigator.clipboard.writeText(details.applicationLink.application_link);
+        setSuccessMessage("Application link copied.");
+    }
+
     if (isLoading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-[#070b16] text-white">
-                <p className="text-sm text-slate-300">Loading interview details...</p>
+            <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f3f9f7] text-slate-900">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(16,185,129,0.18),transparent_35%),radial-gradient(circle_at_84%_16%,rgba(56,189,248,0.18),transparent_35%)]" />
+                <div className="relative rounded-2xl border border-slate-200 bg-white/90 px-6 py-4 shadow-lg">Loading interview details...</div>
             </div>
         );
     }
 
     if (!details) {
         return (
-            <div className="min-h-screen bg-[#070b16] px-6 py-10 text-white lg:px-10">
+            <div className="min-h-screen bg-[#f3f9f7] px-6 py-10 text-slate-900 lg:px-10">
                 <div className="mx-auto max-w-4xl space-y-4">
-                    <div className="rounded-xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
-                        {errorMessage ?? "Interview details not available"}
-                    </div>
-                    <Link
-                        href="/organization/manage-interviews"
-                        className="inline-flex rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-                    >
-                        Back to Manage Interviews
-                    </Link>
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{errorMessage ?? "Interview details not available"}</div>
+                    <Link href="/organization/manage-interviews" className="inline-flex rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800">Back to Manage Interviews</Link>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#070b16] px-6 py-10 text-white lg:px-10">
-            <div className="mx-auto max-w-6xl space-y-6">
-                {(() => {
-                    const activeIndex = partNavItems.findIndex((item) => item.id === activePart);
-                    return (
-                        <div className="sticky top-4 z-20 rounded-2xl border border-white/15 bg-[#0b1224]/90 p-2 backdrop-blur-xl">
-                            <div className="relative grid grid-cols-3 gap-1">
-                                <div
-                                    className="pointer-events-none absolute bottom-1 top-1 rounded-lg bg-white/10 transition-transform duration-300"
-                                    style={{
-                                        width: `calc((100% - 0.5rem) / 3)`,
-                                        transform: `translateX(calc(${Math.max(activeIndex, 0)} * 100% + ${Math.max(activeIndex, 0)} * 0.166rem))`,
-                                    }}
-                                />
-
-                                {partNavItems.map((item) => {
-                                    const isActive = activePart === item.id;
-                                    return (
-                                        <button
-                                            key={item.id}
-                                            type="button"
-                                            onClick={() => handlePartNavigation(item.id)}
-                                            className={`relative rounded-lg px-3 py-2 text-xs font-semibold transition ${isActive ? "text-white" : "text-slate-300 hover:text-white"
-                                                }`}
-                                        >
-                                            {item.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    );
-                })()}
-
-                <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl sm:p-8">
+        <div className="relative min-h-screen overflow-hidden bg-[#f3f9f7] px-6 py-10 text-slate-900 lg:px-10">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(16,185,129,0.18),transparent_35%),radial-gradient(circle_at_84%_16%,rgba(56,189,248,0.18),transparent_35%)]" />
+            <div className="relative mx-auto max-w-7xl space-y-6">
+                <header className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_18px_60px_-30px_rgba(15,23,42,0.45)] sm:p-8">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                            <p className="text-xs uppercase tracking-[0.18em] text-cyan-200">Manage Interview</p>
+                            <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">Interview Workspace</p>
                             <h1 className="mt-2 text-3xl font-semibold">{details.job?.position_title ?? details.interview.title}</h1>
-                            <p className="mt-2 text-sm text-slate-300">Interview ID: {details.interview.id}</p>
+                            <p className="mt-2 text-sm text-slate-600">Interview ID: {details.interview.id} • Status: {details.interview.status}</p>
                         </div>
-                        <Link
-                            href={`/organization/manage-interviews/${details.interview.id}/candidates-info`}
-                            className="inline-flex rounded-lg border border-cyan-300/40 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20"
-                        >
-                            View Candidates
-                        </Link>
-                    </div>
-                </div>
-
-                {errorMessage && (
-                    <div className="rounded-xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
-                        {errorMessage}
-                    </div>
-                )}
-
-                {successMessage && (
-                    <div className="rounded-xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
-                        {successMessage}
-                    </div>
-                )}
-
-                <section id="part-1" className="space-y-4 scroll-mt-24">
-                    <PartHeader
-                        partLabel="Part 1"
-                        title="Job Details And Interview Details"
-                        accentClass="bg-emerald-400/20 text-emerald-200"
-                    />
-
-                    <div className="grid gap-6 lg:grid-cols-2">
-                        <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl space-y-3">
-                            <h2 className="text-lg font-semibold">Interview Details</h2>
-                            <p className="text-sm text-slate-300"><span className="text-slate-400">Title:</span> {details.interview.title}</p>
-                            <p className="text-sm text-slate-300"><span className="text-slate-400">Status:</span> {details.interview.status}</p>
-                            <p className="text-sm text-slate-300"><span className="text-slate-400">Campaign Start:</span> {formatDateTime(details.interview.campaign_start_utc)}</p>
-                            <p className="text-sm text-slate-300"><span className="text-slate-400">Campaign End:</span> {formatDateTime(details.interview.campaign_end_utc)}</p>
-                            <p className="text-sm text-slate-300"><span className="text-slate-400">Assessment Duration:</span> {details.interview.assessment_duration_minutes} mins</p>
-                            <p className="text-sm text-slate-300"><span className="text-slate-400">Interview Duration:</span> {details.interview.interview_duration_minutes} mins</p>
-                            <p className="text-sm text-slate-300"><span className="text-slate-400">Created:</span> {formatDateTime(details.interview.created_at)}</p>
-                            <p className="text-sm text-slate-300"><span className="text-slate-400">Published:</span> {formatDateTime(details.interview.published_at)}</p>
-                        </div>
-
-                        <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl space-y-3">
-                            <h2 className="text-lg font-semibold">Job Details</h2>
-                            <p className="text-sm text-slate-300"><span className="text-slate-400">Position:</span> {details.job?.position_title ?? "-"}</p>
-                            <p className="text-sm text-slate-300"><span className="text-slate-400">Description:</span> {details.job?.job_description ?? "-"}</p>
-                            <p className="text-sm text-slate-300"><span className="text-slate-400">Skills:</span> {(details.job?.skills_required ?? []).join(", ") || "-"}</p>
-                            <p className="text-sm text-slate-300"><span className="text-slate-400">CTC:</span> {details.job?.ctc_min ?? "-"} to {details.job?.ctc_max ?? "-"}</p>
-                            {details.applicationLink ? (
-                                <>
-                                    <p className="text-sm text-slate-300 break-all"><span className="text-slate-400">Application Link:</span> {details.applicationLink.application_link}</p>
-                                    <p className="text-sm text-slate-300"><span className="text-slate-400">Valid Until:</span> {formatDateTime(details.applicationLink.valid_until)}</p>
-                                </>
-                            ) : (
-                                <p className="text-sm text-slate-400">No active application link</p>
-                            )}
+                        <div className="flex flex-wrap gap-2">
+                            <Link href={`/organization/manage-interviews/${details.interview.id}/candidates-info`} className="inline-flex rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-800">View Candidates</Link>
+                            <Link href="/organization/manage-interviews" className="inline-flex rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800">Back</Link>
                         </div>
                     </div>
-                </section>
 
-                <section id="part-2" className="space-y-4 scroll-mt-24">
-                    <PartHeader
-                        partLabel="Part 2"
-                        title="Scheduled Assessments And Interview Slots"
-                        accentClass="bg-cyan-400/20 text-cyan-200"
-                    />
-
-                    <div className="grid gap-6 lg:grid-cols-2">
-                        <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl">
-                            <h2 className="text-lg font-semibold mb-3">Assessment Slots ({details.assessmentSlots.length})</h2>
-                            <div className="space-y-2 text-sm text-slate-300">
-                                {details.assessmentSlots.map((slot, index) => (
-                                    <div key={slot.id} className="rounded-lg border border-white/10 bg-white/5 p-3">
-                                        <p>#{index + 1} {formatDateTime(slot.slot_start_utc)} to {formatDateTime(slot.slot_end_utc)}</p>
-                                        <p className="text-xs text-slate-400">Capacity {slot.assigned_candidates}/{slot.max_candidates}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl">
-                            <h2 className="text-lg font-semibold mb-3">Interview Slots ({details.interviewSlots.length})</h2>
-                            <div className="space-y-2 text-sm text-slate-300">
-                                {details.interviewSlots.map((slot, index) => (
-                                    <div key={slot.id} className="rounded-lg border border-white/10 bg-white/5 p-3">
-                                        <p>#{index + 1} {formatDateTime(slot.slot_start_utc)} to {formatDateTime(slot.slot_end_utc)}</p>
-                                        <p className="text-xs text-slate-400">Capacity {slot.assigned_candidates}/{slot.max_candidates}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                    <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-4">
+                        <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><p className="text-xs uppercase tracking-wide text-emerald-700">Assessment Slots</p><p className="mt-1 text-2xl font-semibold text-emerald-900">{details.assessmentSlots.length}</p></article>
+                        <article className="rounded-2xl border border-sky-200 bg-sky-50 p-4"><p className="text-xs uppercase tracking-wide text-sky-700">Interview Slots</p><p className="mt-1 text-2xl font-semibold text-sky-900">{details.interviewSlots.length}</p></article>
+                        <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><p className="text-xs uppercase tracking-wide text-amber-700">Assessment Questions</p><p className="mt-1 text-2xl font-semibold text-amber-900">{assessmentQuestions.length}</p></article>
+                        <article className="rounded-2xl border border-violet-200 bg-violet-50 p-4"><p className="text-xs uppercase tracking-wide text-violet-700">Fallback Questions</p><p className="mt-1 text-2xl font-semibold text-violet-900">{fallbackQuestions.length}</p></article>
                     </div>
-                </section>
+                </header>
 
-                <section id="part-3" className="space-y-4 scroll-mt-24">
-                    <PartHeader
-                        partLabel="Part 3"
-                        title="Add, Delete, And Update Questions"
-                        description="You can edit assessment questions and interview fallback questions below."
-                        accentClass="bg-amber-400/20 text-amber-200"
-                    />
+                {errorMessage ? <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{errorMessage}</div> : null}
+                {successMessage ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{successMessage}</div> : null}
 
-                    <div className="rounded-2xl border border-amber-300/30 bg-amber-400/10 p-6 backdrop-blur-xl space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-amber-100">Assessment Questions</h3>
-                            <button
-                                onClick={addAssessmentQuestion}
-                                className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-[#041022] transition hover:brightness-110"
-                            >
-                                + Add Assessment Question
-                            </button>
-                        </div>
-
-                        {assessmentQuestions.length === 0 ? (
-                            <p className="text-sm text-amber-200">No assessment questions yet.</p>
+                <section className="grid gap-6 lg:grid-cols-2">
+                    <div className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_18px_60px_-30px_rgba(15,23,42,0.25)] space-y-2">
+                        <h2 className="text-lg font-semibold">Job & Timeline</h2>
+                        <p className="text-sm text-slate-700"><span className="text-slate-500">Title:</span> {details.interview.title}</p>
+                        <p className="text-sm text-slate-700"><span className="text-slate-500">Campaign Start:</span> {formatDateTime(details.interview.campaign_start_utc)}</p>
+                        <p className="text-sm text-slate-700"><span className="text-slate-500">Campaign End:</span> {formatDateTime(details.interview.campaign_end_utc)}</p>
+                        <p className="text-sm text-slate-700"><span className="text-slate-500">Assessment Duration:</span> {details.interview.assessment_duration_minutes} mins</p>
+                        <p className="text-sm text-slate-700"><span className="text-slate-500">Interview Duration:</span> {details.interview.interview_duration_minutes} mins</p>
+                        <p className="text-sm text-slate-700"><span className="text-slate-500">Skills:</span> {(details.job?.skills_required ?? []).join(", ") || "-"}</p>
+                        <p className="text-sm text-slate-700"><span className="text-slate-500">CTC:</span> {details.job?.ctc_min ?? "-"} to {details.job?.ctc_max ?? "-"}</p>
+                    </div>
+                    <div className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_18px_60px_-30px_rgba(15,23,42,0.25)] space-y-3">
+                        <h2 className="text-lg font-semibold">Application Link</h2>
+                        {details.applicationLink ? (
+                            <>
+                                <p className="break-all rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">{details.applicationLink.application_link}</p>
+                                <p className="text-sm text-slate-700"><span className="text-slate-500">Valid Until:</span> {formatDateTime(details.applicationLink.valid_until)}</p>
+                                <button onClick={() => void copyApplicationLink()} className="inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800">Copy Link</button>
+                            </>
                         ) : (
-                            assessmentQuestions.map((question, qIndex) => (
-                                <div key={`${question.id}-${qIndex}`} className="rounded-lg border border-amber-300/20 bg-amber-400/5 p-4 space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-xs text-amber-200">Question {qIndex + 1}</p>
-                                        <button
-                                            onClick={() => removeAssessmentQuestion(qIndex)}
-                                            className="text-xs font-semibold text-rose-300 hover:text-rose-200"
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
-                                    <textarea
-                                        rows={2}
-                                        value={question.question_text}
-                                        onChange={(e) => updateAssessmentQuestionText(qIndex, e.target.value)}
-                                        className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-amber-400"
-                                    />
-                                    <div className="grid gap-2 md:grid-cols-2">
-                                        {question.options.map((option, optIndex) => (
-                                            <div key={`${question.id}-${option.label}`} className="rounded-md border border-white/10 p-2">
-                                                <label className="text-xs text-slate-300">Option {option.label}</label>
-                                                <input
-                                                    type="text"
-                                                    value={option.text}
-                                                    onChange={(e) => updateAssessmentOptionText(qIndex, optIndex, e.target.value)}
-                                                    className="mt-1 w-full rounded border border-white/20 bg-white/5 px-2 py-1.5 text-sm text-white outline-none focus:border-amber-400"
-                                                />
-                                                <label className="mt-2 inline-flex items-center gap-2 text-xs text-amber-200">
-                                                    <input
-                                                        type="radio"
-                                                        name={`correct-${question.id}-${qIndex}`}
-                                                        checked={question.correct_option_label === option.label}
-                                                        onChange={() => setAssessmentCorrectOption(qIndex, option.label)}
-                                                    />
-                                                    Correct
-                                                </label>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-
-                    <div className="rounded-2xl border border-cyan-300/30 bg-cyan-400/10 p-6 backdrop-blur-xl space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-cyan-100">Interview Fallback Questions</h3>
-                            <button
-                                onClick={addFallbackQuestion}
-                                className="rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-[#041022] transition hover:brightness-110"
-                            >
-                                + Add Fallback Question
-                            </button>
-                        </div>
-
-                        {fallbackQuestions.length === 0 ? (
-                            <p className="text-sm text-cyan-200">No fallback questions yet.</p>
-                        ) : (
-                            fallbackQuestions.map((question, index) => (
-                                <div key={`${question.id}-${index}`} className="rounded-lg border border-cyan-300/20 bg-cyan-400/5 p-4 space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-xs text-cyan-200">Question {index + 1}</p>
-                                        <button
-                                            onClick={() => removeFallbackQuestion(index)}
-                                            className="text-xs font-semibold text-rose-300 hover:text-rose-200"
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
-                                    <textarea
-                                        rows={2}
-                                        value={question.question_text}
-                                        onChange={(e) => updateFallbackQuestionText(index, e.target.value)}
-                                        className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-400"
-                                    />
-                                    <select
-                                        value={question.difficulty_level}
-                                        onChange={(e) => updateFallbackQuestionDifficulty(index, e.target.value)}
-                                        className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-400"
-                                    >
-                                        <option value="EASY">Easy</option>
-                                        <option value="MEDIUM">Medium</option>
-                                        <option value="HARD">Hard</option>
-                                    </select>
-                                </div>
-                            ))
+                            <p className="text-sm text-slate-500">No active application link.</p>
                         )}
                     </div>
                 </section>
 
-                <div className="flex flex-wrap gap-3 pt-2">
-                    <Link
-                        href="/organization/manage-interviews"
-                        className="inline-flex rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-                    >
-                        Back
-                    </Link>
-                    <button
-                        onClick={handleSaveQuestions}
-                        disabled={isSaving}
-                        className="inline-flex rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-400 px-5 py-2 text-sm font-semibold text-[#041022] transition hover:brightness-110 disabled:opacity-70"
-                    >
-                        {isSaving ? "Saving..." : "Save Question Updates"}
-                    </button>
-                </div>
+                <section className="grid gap-6 lg:grid-cols-2">
+                    <div className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_18px_60px_-30px_rgba(15,23,42,0.25)]">
+                        <h2 className="text-lg font-semibold">Assessment Slots</h2>
+                        <div className="mt-3 space-y-2">
+                            {details.assessmentSlots.map((slot, index) => (
+                                <div key={slot.id} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+                                    #{index + 1} {formatDateTime(slot.slot_start_utc)} - {formatDateTime(slot.slot_end_utc)}
+                                    <p className="text-xs text-emerald-700">Capacity {slot.assigned_candidates}/{slot.max_candidates}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_18px_60px_-30px_rgba(15,23,42,0.25)]">
+                        <h2 className="text-lg font-semibold">Interview Slots</h2>
+                        <div className="mt-3 space-y-2">
+                            {details.interviewSlots.map((slot, index) => (
+                                <div key={slot.id} className="rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm text-cyan-900">
+                                    #{index + 1} {formatDateTime(slot.slot_start_utc)} - {formatDateTime(slot.slot_end_utc)}
+                                    <p className="text-xs text-cyan-700">Capacity {slot.assigned_candidates}/{slot.max_candidates}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                <section className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_18px_60px_-30px_rgba(15,23,42,0.25)] space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <h2 className="text-lg font-semibold">Question Studio</h2>
+                        <input type="text" placeholder="Search question text" value={questionSearch} onChange={(e) => setQuestionSearch(e.target.value)} className="w-full max-w-xs rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900" />
+                    </div>
+
+                    <div className="grid gap-6 xl:grid-cols-2">
+                        <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                            <div className="flex items-center justify-between"><h3 className="font-semibold text-amber-900">Assessment Questions</h3><button onClick={addAssessmentQuestion} className="rounded-lg bg-amber-600 px-3 py-1 text-xs font-semibold text-white">Add</button></div>
+                            {filteredAssessmentQuestions.map((question) => {
+                                const qIndex = assessmentQuestions.findIndex((q) => q.id === question.id);
+                                return (
+                                    <div key={question.id} className="space-y-2 rounded-xl border border-amber-200 bg-white p-3">
+                                        <div className="flex justify-between"><span className="text-xs text-amber-700">Question {qIndex + 1}</span><button onClick={() => removeAssessmentQuestion(qIndex)} className="text-xs text-rose-700">Delete</button></div>
+                                        <textarea rows={2} value={question.question_text} onChange={(e) => updateAssessmentQuestionText(qIndex, e.target.value)} className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
+                                        <div className="grid gap-2 sm:grid-cols-2">
+                                            {question.options.map((option, optIndex) => (
+                                                <div key={option.label} className="rounded-lg border border-slate-200 p-2">
+                                                    <label className="text-xs text-slate-600">Option {option.label}</label>
+                                                    <input type="text" value={option.text} onChange={(e) => updateAssessmentOptionText(qIndex, optIndex, e.target.value)} className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm" />
+                                                    <label className="mt-1 inline-flex items-center gap-1 text-xs text-slate-700"><input type="radio" name={`correct-${question.id}`} checked={question.correct_option_label === option.label} onChange={() => setAssessmentCorrectOption(qIndex, option.label)} />Correct</label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="space-y-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
+                            <div className="flex items-center justify-between"><h3 className="font-semibold text-sky-900">Interview Fallback Questions</h3><button onClick={addFallbackQuestion} className="rounded-lg bg-sky-600 px-3 py-1 text-xs font-semibold text-white">Add</button></div>
+                            {filteredFallbackQuestions.map((question) => {
+                                const qIndex = fallbackQuestions.findIndex((q) => q.id === question.id);
+                                return (
+                                    <div key={question.id} className="space-y-2 rounded-xl border border-sky-200 bg-white p-3">
+                                        <div className="flex justify-between"><span className="text-xs text-sky-700">Question {qIndex + 1}</span><button onClick={() => removeFallbackQuestion(qIndex)} className="text-xs text-rose-700">Delete</button></div>
+                                        <textarea rows={2} value={question.question_text} onChange={(e) => updateFallbackQuestionText(qIndex, e.target.value)} className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
+                                        <select value={question.difficulty_level} onChange={(e) => updateFallbackQuestionDifficulty(qIndex, e.target.value)} className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
+                                            <option value="EASY">Easy</option>
+                                            <option value="MEDIUM">Medium</option>
+                                            <option value="HARD">Hard</option>
+                                        </select>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                        <button onClick={handleSaveQuestions} disabled={isSaving} className="inline-flex rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 px-5 py-2 text-sm font-semibold text-white disabled:opacity-70">{isSaving ? "Saving..." : "Save Question Updates"}</button>
+                    </div>
+                </section>
             </div>
         </div>
     );

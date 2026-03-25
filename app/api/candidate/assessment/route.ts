@@ -365,9 +365,28 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ success: false, error: "Application not found" }, { status: 404 });
         }
 
+        const sessionValidFromMs = attempt.session_valid_from
+            ? new Date(attempt.session_valid_from).getTime()
+            : null;
+
+        const preOpenData =
+            sessionValidFromMs !== null && sessionValidFromMs > Date.now()
+                ? {
+                    opensAt: attempt.session_valid_from,
+                    serverNow: new Date().toISOString(),
+                }
+                : undefined;
+
         const slotAccess = await validateAssignedAssessmentSlotWindow(application.id);
         if (!slotAccess.allowed) {
-            return NextResponse.json({ success: false, error: slotAccess.error || "Assessment access denied" }, { status: 400 });
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: slotAccess.error || "Assessment access denied",
+                    ...(preOpenData ? { data: preOpenData } : {}),
+                },
+                { status: 400 },
+            );
         }
 
         const { data: interview, error: interviewError } = await supabaseAdmin
@@ -386,7 +405,14 @@ export async function GET(request: NextRequest) {
         );
 
         if (!ensuredWindow.ok) {
-            return NextResponse.json({ success: false, error: ensuredWindow.error }, { status: ensuredWindow.status });
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: ensuredWindow.error,
+                    ...(preOpenData ? { data: preOpenData } : {}),
+                },
+                { status: ensuredWindow.status },
+            );
         }
 
         const { data: jobData, error: jobError } = await supabaseAdmin

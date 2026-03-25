@@ -62,5 +62,69 @@ export async function GET(request: Request) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, data: data ?? [] });
+    const requests = data ?? [];
+    const requestIds = requests
+        .map((request) => request.id)
+        .filter((id): id is number => Number.isInteger(id) && id > 0);
+
+    const detailsByRequestId = new Map<
+        number,
+        {
+            registration_id: string | null;
+            address: string | null;
+            description: string | null;
+        }
+    >();
+
+    if (requestIds.length > 0) {
+        const { data: auditRows } = await supabaseAdmin
+            .from("audit_logs")
+            .select("entity_id, new_values, created_at")
+            .eq("entity_type", "organization_requests")
+            .eq("action_type", "ORGANIZATION_VERIFICATION_SUBMITTED")
+            .in("entity_id", requestIds)
+            .order("created_at", { ascending: false });
+
+        for (const row of auditRows ?? []) {
+            const entityId = row.entity_id;
+
+            if (!entityId || detailsByRequestId.has(entityId)) {
+                continue;
+            }
+
+            const payload = row.new_values;
+
+            if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+                continue;
+            }
+
+            const values = payload as Record<string, unknown>;
+
+            detailsByRequestId.set(entityId, {
+                registration_id:
+                    typeof values.registration_id === "string" && values.registration_id.trim().length > 0
+                        ? values.registration_id.trim()
+                        : null,
+                address:
+                    typeof values.address === "string" && values.address.trim().length > 0
+                        ? values.address.trim()
+                        : null,
+                description:
+                    typeof values.description === "string" && values.description.trim().length > 0
+                        ? values.description.trim()
+                        : null,
+            });
+        }
+    }
+
+    const enrichedRequests = requests.map((request) => ({
+        ...request,
+        ...(detailsByRequestId.get(request.id) ?? {
+            registration_id: null,
+            address: null,
+            description: null,
+        }),
+    }));
+
+    return NextResponse.json({ success: true, data: enrichedRequests });
 }

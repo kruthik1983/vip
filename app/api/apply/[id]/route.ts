@@ -7,6 +7,7 @@ type FormConfig = {
     requireEmail: boolean;
     requirePhone: boolean;
     requireResume: boolean;
+    requirePhoto: boolean;
     consentPolicyVersion: string;
     consentPolicyUrl: string | null;
 };
@@ -21,6 +22,8 @@ type SlotOption = {
 };
 
 const RESUME_BUCKET = process.env.SUPABASE_RESUME_BUCKET || "candidate-resumes";
+const CANDIDATE_PHOTO_BUCKET = process.env.SUPABASE_CANDIDATE_PHOTO_BUCKET || "candidate-photos";
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
 function parseFormConfig(raw: unknown): FormConfig {
     const fallback: FormConfig = {
@@ -28,6 +31,7 @@ function parseFormConfig(raw: unknown): FormConfig {
         requireEmail: true,
         requirePhone: false,
         requireResume: true,
+        requirePhoto: true,
         consentPolicyVersion: process.env.CONSENT_POLICY_VERSION || "v1",
         consentPolicyUrl: process.env.CONSENT_POLICY_URL || null,
     };
@@ -42,6 +46,7 @@ function parseFormConfig(raw: unknown): FormConfig {
         requireEmail: cfg.requireEmail ?? fallback.requireEmail,
         requirePhone: cfg.requirePhone ?? fallback.requirePhone,
         requireResume: cfg.requireResume ?? fallback.requireResume,
+        requirePhoto: cfg.requirePhoto ?? fallback.requirePhoto,
         consentPolicyVersion:
             typeof cfg.consentPolicyVersion === "string" && cfg.consentPolicyVersion.trim()
                 ? cfg.consentPolicyVersion.trim()
@@ -244,6 +249,7 @@ export async function POST(
         const candidateEmail = String(formData.get("email") || "").trim().toLowerCase();
         const candidatePhone = String(formData.get("phone") || "").trim();
         const resumeFile = formData.get("resume") as File | null;
+        const photoFile = formData.get("photo") as File | null;
         const assessmentPreferenceIds = parsePreferenceIds(formData.get("assessmentPreferenceIds"));
         const interviewPreferenceIds = parsePreferenceIds(formData.get("interviewPreferenceIds"));
         const consentDataProcessing = parseBoolean(formData.get("consentDataProcessing"));
@@ -268,6 +274,20 @@ export async function POST(
 
         if (formConfig.requireResume && (!resumeFile || resumeFile.size === 0)) {
             return NextResponse.json({ success: false, error: "Resume is required" }, { status: 400 });
+        }
+
+        if (formConfig.requirePhoto && (!photoFile || photoFile.size === 0)) {
+            return NextResponse.json({ success: false, error: "Photo is required" }, { status: 400 });
+        }
+
+        if (photoFile && photoFile.size > 0) {
+            if (!photoFile.type.startsWith("image/")) {
+                return NextResponse.json({ success: false, error: "Photo must be an image file" }, { status: 400 });
+            }
+
+            if (photoFile.size > MAX_PHOTO_BYTES) {
+                return NextResponse.json({ success: false, error: "Photo must be 5MB or smaller" }, { status: 400 });
+            }
         }
 
         if (!consentDataProcessing || !consentAudioRecording || !consentVideoRecording) {
@@ -348,6 +368,7 @@ export async function POST(
 
         let resumeFilePath: string | null = null;
         let resumeFileSize: number | null = null;
+        let candidatePhotoPath: string | null = null;
 
         if (resumeFile && resumeFile.size > 0) {
             const extension = resumeFile.name.includes(".")
@@ -378,6 +399,34 @@ export async function POST(
             resumeFileSize = resumeFile.size;
         }
 
+        if (photoFile && photoFile.size > 0) {
+            const extension = photoFile.name.includes(".")
+                ? photoFile.name.split(".").pop()?.toLowerCase() || "jpg"
+                : "jpg";
+
+            const storagePath = `interviews/${linkData.interview_id}/photos/${randomUUID()}.${extension}`;
+            const buffer = new Uint8Array(await photoFile.arrayBuffer());
+
+            const { error: uploadError } = await supabaseAdmin.storage
+                .from(CANDIDATE_PHOTO_BUCKET)
+                .upload(storagePath, buffer, {
+                    contentType: photoFile.type || "image/jpeg",
+                    upsert: false,
+                });
+
+            if (uploadError) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        error: `Failed to upload photo. Ensure storage bucket '${CANDIDATE_PHOTO_BUCKET}' exists and is writable.`,
+                    },
+                    { status: 500 }
+                );
+            }
+
+            candidatePhotoPath = storagePath;
+        }
+
         const { data: applicationData, error: applicationError } = await supabaseAdmin
             .from("applications")
             .insert({
@@ -387,6 +436,7 @@ export async function POST(
                 candidate_phone: candidatePhone || null,
                 resume_file_path: resumeFilePath,
                 resume_file_size: resumeFileSize,
+                candidate_photo_path: candidatePhotoPath,
                 status: "APPLIED",
             })
             .select("id, created_at")

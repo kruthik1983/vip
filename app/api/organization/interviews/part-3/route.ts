@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
         const assessmentStart = new Date(assessmentSlotsData[0].slot_start_utc);
         // Validity: 1 day before assessment start
         const validUntil = new Date(assessmentStart.getTime() - 24 * 60 * 60 * 1000);
-        const applicationLink = `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/apply/${applicationToken}`;
+        const applicationLink = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/apply/${applicationToken}`;
 
         if (validUntil <= new Date()) {
             return NextResponse.json(

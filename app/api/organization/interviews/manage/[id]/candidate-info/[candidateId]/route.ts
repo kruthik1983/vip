@@ -14,6 +14,15 @@ function getRecordingBucketCandidates() {
         .filter((value, index, arr) => value.length > 0 && arr.indexOf(value) === index);
 }
 
+function getCandidatePhotoBucketCandidates() {
+    return [
+        process.env.SUPABASE_CANDIDATE_PHOTO_BUCKET,
+        "candidate-photos",
+    ]
+        .map((value) => String(value || "").trim())
+        .filter((value, index, arr) => value.length > 0 && arr.indexOf(value) === index);
+}
+
 async function createSignedUrlFromBuckets(objectPath: string, buckets: string[], expiresIn = 3600) {
     for (const bucket of buckets) {
         const { data, error } = await supabaseAdmin.storage.from(bucket).createSignedUrl(objectPath, expiresIn);
@@ -66,7 +75,7 @@ async function resolveCandidateContext(interviewId: number, candidateId: number,
 
     const { data: applicationData, error: applicationError } = await supabaseAdmin
         .from("applications")
-        .select("id, interview_id, candidate_name, candidate_email, candidate_phone, resume_file_path, status, created_at")
+        .select("id, interview_id, candidate_name, candidate_email, candidate_phone, resume_file_path, candidate_photo_path, status, created_at")
         .eq("id", candidateId)
         .eq("interview_id", interviewId)
         .maybeSingle();
@@ -178,6 +187,11 @@ async function resolveCandidateContext(interviewId: number, candidateId: number,
         ? await createSignedUrlFromBuckets(resumePath, [resumeBucket, ...recordingBuckets])
         : { signedUrl: null, bucket: null };
 
+    const photoPath = String(applicationData.candidate_photo_path || "").trim();
+    const photoSigned = photoPath
+        ? await createSignedUrlFromBuckets(photoPath, getCandidatePhotoBucketCandidates())
+        : { signedUrl: null, bucket: null };
+
     const completedAssessment = Boolean(assessmentAttempt?.submitted_at);
     const completedInterview = Boolean(interviewSession?.ended_at);
 
@@ -195,6 +209,8 @@ async function resolveCandidateContext(interviewId: number, candidateId: number,
                 candidatePhone: applicationData.candidate_phone,
                 resumePath: resumePath || null,
                 resumeUrl: resumeSigned.signedUrl,
+                photoPath: photoPath || null,
+                photoUrl: photoSigned.signedUrl,
                 status: applicationData.status,
                 appliedAt: applicationData.created_at,
             },

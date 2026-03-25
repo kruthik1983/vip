@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { randomBytes } from "crypto";
 import {
     sendAssessmentCredentialsEmail,
     sendInterviewCredentialsEmail,
@@ -21,6 +22,67 @@ interface NotificationPayload {
     recipientEmail: string;
     recipientName: string;
     idempotencyKey: string;
+}
+
+function generateToken() {
+    return randomBytes(24).toString("hex");
+}
+
+async function ensureAssessmentAttemptToken(params: {
+    applicationId: number;
+    assessmentSlotStartUtc?: string;
+    assessmentSlotEndUtc?: string;
+}) {
+    const { data: existingAttempt } = await supabaseAdmin
+        .from("assessment_attempts")
+        .select("id, session_token")
+        .eq("application_id", params.applicationId)
+        .maybeSingle();
+
+    if (existingAttempt?.session_token) {
+        return existingAttempt.session_token;
+    }
+
+    const token = generateToken();
+    const validFrom = params.assessmentSlotStartUtc
+        ? new Date(new Date(params.assessmentSlotStartUtc).getTime() - 2 * 60 * 60 * 1000).toISOString()
+        : new Date().toISOString();
+    const validUntil = params.assessmentSlotEndUtc
+        ? new Date(params.assessmentSlotEndUtc).toISOString()
+        : new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+
+    if (existingAttempt?.id) {
+        const { error: updateError } = await supabaseAdmin
+            .from("assessment_attempts")
+            .update({
+                session_token: token,
+                session_valid_from: validFrom,
+                session_valid_until: validUntil,
+            })
+            .eq("id", existingAttempt.id);
+
+        if (!updateError) {
+            return token;
+        }
+    }
+
+    const { error: insertError } = await supabaseAdmin
+        .from("assessment_attempts")
+        .insert({
+            application_id: params.applicationId,
+            status: "SLOT_ASSIGNED",
+            session_token: token,
+            session_valid_from: validFrom,
+            session_valid_until: validUntil,
+            total_questions: 20,
+            correct_answers: 0,
+        });
+
+    if (insertError) {
+        throw new Error("Failed to create assessment credentials token");
+    }
+
+    return token;
 }
 
 /**
@@ -103,12 +165,11 @@ export async function POST(request: Request) {
 
                 slotDetails = { assessmentSlot: slot };
 
-                // Get assessment token from assessment_attempts
-                const { data: attempt } = await supabaseAdmin
-                    .from("assessment_attempts")
-                    .select("session_token")
-                    .eq("application_id", payload.applicationId)
-                    .maybeSingle();
+                const assessmentToken = await ensureAssessmentAttemptToken({
+                    applicationId: payload.applicationId,
+                    assessmentSlotStartUtc: slot?.slot_start_utc,
+                    assessmentSlotEndUtc: slot?.slot_end_utc,
+                });
 
                 emailResult = await sendAssessmentCredentialsEmail({
                     to: payload.recipientEmail,
@@ -116,7 +177,7 @@ export async function POST(request: Request) {
                     assessmentStartTime: slot?.slot_start_utc
                         ? new Date(slot.slot_start_utc).toUTCString()
                         : "TBA",
-                    assessmentToken: attempt?.session_token || "TOKEN_NOT_FOUND",
+                    assessmentToken,
                     interviewTitle,
                 });
             } else if (payload.notificationType === "INTERVIEW_CREDENTIALS" && app.assigned_interview_slot_id) {
@@ -151,7 +212,7 @@ export async function POST(request: Request) {
                 if (app.assigned_assessment_slot_id) {
                     const { data: slot } = await supabaseAdmin
                         .from("assessment_slots")
-                        .select("slot_start_utc")
+                        .select("slot_start_utc, slot_end_utc")
                         .eq("id", app.assigned_assessment_slot_id)
                         .maybeSingle();
                     assessmentSlot = slot;
@@ -177,19 +238,41 @@ export async function POST(request: Request) {
                         : "TBA",
                     interviewTitle,
                 });
+
+                // Fail-safe: immediately send assessment credentials too, so candidate always receives assessment access mail.
+                if (app.assigned_assessment_slot_id) {
+                    try {
+                        const assessmentToken = await ensureAssessmentAttemptToken({
+                            applicationId: payload.applicationId,
+                            assessmentSlotStartUtc: assessmentSlot?.slot_start_utc,
+                            assessmentSlotEndUtc: assessmentSlot?.slot_end_utc,
+                        });
+
+                        await sendAssessmentCredentialsEmail({
+                            to: payload.recipientEmail,
+                            candidateName: payload.recipientName || app.candidate_name,
+                            assessmentStartTime: assessmentSlot?.slot_start_utc
+                                ? new Date(assessmentSlot.slot_start_utc).toUTCString()
+                                : "TBA",
+                            assessmentToken,
+                            interviewTitle,
+                        });
+                    } catch (secondaryError) {
+                        console.error("[NOTIFICATION_WARN] SLOT_ASSIGNED fallback assessment credentials failed", secondaryError);
+                    }
+                }
             } else if (payload.notificationType === "ASSESSMENT_REMINDER_24H" && app.assigned_assessment_slot_id) {
                 const { data: slot } = await supabaseAdmin
                     .from("assessment_slots")
-                    .select("slot_start_utc")
+                    .select("slot_start_utc, slot_end_utc")
                     .eq("id", app.assigned_assessment_slot_id)
                     .maybeSingle();
 
-                // Get assessment token
-                const { data: attempt } = await supabaseAdmin
-                    .from("assessment_attempts")
-                    .select("session_token")
-                    .eq("application_id", payload.applicationId)
-                    .maybeSingle();
+                const assessmentToken = await ensureAssessmentAttemptToken({
+                    applicationId: payload.applicationId,
+                    assessmentSlotStartUtc: slot?.slot_start_utc,
+                    assessmentSlotEndUtc: slot?.slot_end_utc,
+                });
 
                 emailResult = await sendAssessmentReminderEmail({
                     to: payload.recipientEmail,
@@ -197,7 +280,7 @@ export async function POST(request: Request) {
                     assessmentStartTime: slot?.slot_start_utc
                         ? new Date(slot.slot_start_utc).toUTCString()
                         : "TBA",
-                    assessmentToken: attempt?.session_token || "TOKEN_NOT_FOUND",
+                    assessmentToken,
                     interviewTitle,
                 });
             }

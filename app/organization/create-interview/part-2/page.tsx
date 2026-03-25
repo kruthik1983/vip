@@ -41,23 +41,19 @@ function Part2Content() {
     const [isSaving, setIsSaving] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    // Campaign window (loaded from Part 1)
     const [campaignStartUtc, setCampaignStartUtc] = useState<string | null>(null);
     const [campaignEndUtc, setCampaignEndUtc] = useState<string | null>(null);
 
-    // Assessment Slots state (times only - dates auto-derived)
     const [assessmentSlots, setAssessmentSlots] = useState<AssessmentSlot[]>([]);
     const [assessmentFirstSlotTime, setAssessmentFirstSlotTime] = useState("09:00");
     const [assessmentSlotCount, setAssessmentSlotCount] = useState("5");
     const [assessmentSlotCapacity, setAssessmentSlotCapacity] = useState("10");
 
-    // Interview Slots state (times only - dates auto-derived)
     const [interviewSlots, setInterviewSlots] = useState<InterviewSlot[]>([]);
     const [interviewFirstSlotTime, setInterviewFirstSlotTime] = useState("09:30");
     const [interviewSlotCount, setInterviewSlotCount] = useState("5");
     const [interviewSlotCapacity, setInterviewSlotCapacity] = useState("10");
 
-    // Assessment state
     const [isAiGenerated, setIsAiGenerated] = useState(true);
     const [assessmentQuestions, setAssessmentQuestions] = useState<AssessmentQuestion[]>([]);
     const [newAssessmentQuestion, setNewAssessmentQuestion] = useState<AssessmentQuestion>({
@@ -70,14 +66,12 @@ function Part2Content() {
         ],
     });
 
-    // Interview state
     const [interviewQuestions, setInterviewQuestions] = useState<InterviewQuestion[]>([]);
     const [newInterviewQuestion, setNewInterviewQuestion] = useState<InterviewQuestion>({
         questionText: "",
         difficulty: "MEDIUM",
     });
 
-    // Schedule preview state
     const [schedulePreview, setSchedulePreview] = useState<{
         assessmentStart: string | null;
         assessmentEnd: string | null;
@@ -106,7 +100,6 @@ function Part2Content() {
                 return;
             }
 
-            // Fetch interview data to get campaign window
             const { data: interviewData, error } = await supabase
                 .from("interviews")
                 .select("campaign_start_utc, campaign_end_utc")
@@ -121,10 +114,8 @@ function Part2Content() {
                 return;
             }
 
-            // Set campaign window from Part 1
             setCampaignStartUtc(interviewData.campaign_start_utc);
             setCampaignEndUtc(interviewData.campaign_end_utc);
-
             setIsLoading(false);
         }
 
@@ -135,7 +126,6 @@ function Part2Content() {
         };
     }, [router, interviewId]);
 
-    // ===== ASSESSMENT SLOT MANAGEMENT =====
     function handleAutoGenerateAssessmentSlots() {
         setErrorMessage(null);
 
@@ -144,7 +134,6 @@ function Part2Content() {
             return;
         }
 
-        // Use campaign start date with selected time
         const campaignStart = new Date(campaignStartUtc);
         const [hours, minutes] = assessmentFirstSlotTime.split(":");
         const firstSlotStart = new Date(
@@ -154,7 +143,7 @@ function Part2Content() {
             parseInt(hours),
             parseInt(minutes),
             0,
-            0
+            0,
         );
 
         const slotCount = parseInt(assessmentSlotCount);
@@ -172,7 +161,7 @@ function Part2Content() {
 
         const generatedSlots: AssessmentSlot[] = Array.from({ length: slotCount }, (_, index) => {
             const slotStart = new Date(firstSlotStart.getTime() + index * 60 * 60 * 1000);
-            const slotEnd = new Date(slotStart.getTime() + 20 * 60 * 1000); // 20 min assessment
+            const slotEnd = new Date(slotStart.getTime() + 20 * 60 * 1000);
 
             return {
                 slotStartUtc: slotStart.toISOString(),
@@ -189,7 +178,6 @@ function Part2Content() {
 
         setAssessmentSlots(generatedSlots);
 
-        // Update schedule preview
         if (generatedSlots.length > 0) {
             const firstStart = new Date(generatedSlots[0].slotStartUtc);
             const lastEnd = new Date(generatedSlots[generatedSlots.length - 1].slotEndUtc);
@@ -201,12 +189,10 @@ function Part2Content() {
         }
     }
 
-
     function handleRemoveAssessmentSlot(index: number) {
         setAssessmentSlots(assessmentSlots.filter((_, i) => i !== index));
     }
 
-    // ===== INTERVIEW SLOT MANAGEMENT =====
     function handleAutoGenerateInterviewSlots() {
         setErrorMessage(null);
 
@@ -220,7 +206,6 @@ function Part2Content() {
             return;
         }
 
-        // Use campaign start date with selected time
         const campaignStart = new Date(campaignStartUtc);
         const [hours, minutes] = interviewFirstSlotTime.split(":");
         const firstSlotStart = new Date(
@@ -230,7 +215,7 @@ function Part2Content() {
             parseInt(hours),
             parseInt(minutes),
             0,
-            0
+            0,
         );
 
         const slotCount = parseInt(interviewSlotCount);
@@ -246,20 +231,21 @@ function Part2Content() {
             return;
         }
 
-        // Validate no overlap: interview slots must start after assessment slots end
         for (let i = 0; i < Math.min(slotCount, assessmentSlots.length); i++) {
             const assessmentEnd = new Date(assessmentSlots[i].slotEndUtc);
             const interviewStart = new Date(firstSlotStart.getTime() + i * 60 * 60 * 1000);
 
             if (assessmentEnd > interviewStart) {
-                setErrorMessage(`Slot ${i + 1}: Assessment ends at ${assessmentEnd.toLocaleTimeString()} but interview starts at ${interviewStart.toLocaleTimeString()}. Overlapping times not allowed.`);
+                setErrorMessage(
+                    `Slot ${i + 1}: Assessment ends at ${assessmentEnd.toLocaleTimeString()} but interview starts at ${interviewStart.toLocaleTimeString()}. Overlapping times not allowed.`,
+                );
                 return;
             }
         }
 
         const generatedSlots: InterviewSlot[] = Array.from({ length: slotCount }, (_, index) => {
             const slotStart = new Date(firstSlotStart.getTime() + index * 60 * 60 * 1000);
-            const slotEnd = new Date(slotStart.getTime() + 40 * 60 * 1000); // 40 min interview
+            const slotEnd = new Date(slotStart.getTime() + 40 * 60 * 1000);
 
             return {
                 slotStartUtc: slotStart.toISOString(),
@@ -276,11 +262,10 @@ function Part2Content() {
 
         setInterviewSlots(generatedSlots);
 
-        // Update schedule preview
         if (generatedSlots.length > 0) {
             const firstStart = new Date(generatedSlots[0].slotStartUtc);
             const lastEnd = new Date(generatedSlots[generatedSlots.length - 1].slotEndUtc);
-            setSchedulePreview(prev => ({
+            setSchedulePreview((prev) => ({
                 ...prev,
                 interviewStart: firstStart.toISOString(),
                 interviewEnd: lastEnd.toISOString(),
@@ -292,7 +277,6 @@ function Part2Content() {
         setInterviewSlots(interviewSlots.filter((_, i) => i !== index));
     }
 
-    // ===== ASSESSMENT QUESTION MANAGEMENT =====
     function handleAddAssessmentQuestion() {
         setErrorMessage(null);
 
@@ -313,7 +297,6 @@ function Part2Content() {
 
         setAssessmentQuestions([...assessmentQuestions, newAssessmentQuestion]);
 
-        // Reset form
         setNewAssessmentQuestion({
             questionText: "",
             options: [
@@ -329,7 +312,6 @@ function Part2Content() {
         setAssessmentQuestions(assessmentQuestions.filter((_, i) => i !== index));
     }
 
-    // ===== INTERVIEW QUESTION MANAGEMENT =====
     function handleAddInterviewQuestion() {
         setErrorMessage(null);
 
@@ -340,7 +322,6 @@ function Part2Content() {
 
         setInterviewQuestions([...interviewQuestions, newInterviewQuestion]);
 
-        // Reset form
         setNewInterviewQuestion({
             questionText: "",
             difficulty: "MEDIUM",
@@ -351,7 +332,6 @@ function Part2Content() {
         setInterviewQuestions(interviewQuestions.filter((_, i) => i !== index));
     }
 
-    // ===== SAVE PART 2 =====
     async function handleSavePart2() {
         setErrorMessage(null);
 
@@ -370,7 +350,6 @@ function Part2Content() {
             return;
         }
 
-        // Validate no overlaps if both slot types exist
         if (assessmentSlots.length > 0 && interviewSlots.length > 0) {
             for (let i = 0; i < Math.min(assessmentSlots.length, interviewSlots.length); i++) {
                 const assessmentEnd = new Date(assessmentSlots[i].slotEndUtc);
@@ -378,8 +357,7 @@ function Part2Content() {
 
                 if (assessmentEnd > interviewStart) {
                     setErrorMessage(
-                        `Slot pair ${i + 1}: Assessment ends at ${assessmentEnd.toLocaleTimeString()} ` +
-                        `but interview starts at ${interviewStart.toLocaleTimeString()}. Overlapping times not allowed.`
+                        `Slot pair ${i + 1}: Assessment ends at ${assessmentEnd.toLocaleTimeString()} but interview starts at ${interviewStart.toLocaleTimeString()}. Overlapping times not allowed.`,
                     );
                     return;
                 }
@@ -402,17 +380,13 @@ function Part2Content() {
                 interviewId: parseInt(interviewId || "0"),
                 assessmentSlotConfig: {
                     enabled: assessmentSlots.length > 0,
-                    firstSlotStartUtc: assessmentSlots.length > 0
-                        ? assessmentSlots[0].slotStartUtc
-                        : null,
+                    firstSlotStartUtc: assessmentSlots.length > 0 ? assessmentSlots[0].slotStartUtc : null,
                     numberOfSlots: assessmentSlots.length,
                     maxCandidatesPerSlot: parseInt(assessmentSlotCapacity) || 1,
                 },
                 interviewSlotConfig: {
                     enabled: interviewSlots.length > 0,
-                    firstSlotStartUtc: interviewSlots.length > 0
-                        ? interviewSlots[0].slotStartUtc
-                        : null,
+                    firstSlotStartUtc: interviewSlots.length > 0 ? interviewSlots[0].slotStartUtc : null,
                     numberOfSlots: interviewSlots.length,
                     maxCandidatesPerSlot: parseInt(interviewSlotCapacity) || 1,
                 },
@@ -442,7 +416,6 @@ function Part2Content() {
                 return;
             }
 
-            // Redirect to Part 3
             router.push(`/organization/create-interview/part-3?interviewId=${interviewId}`);
         } catch (error) {
             setErrorMessage("Error saving Part 2. Please try again.");
@@ -453,458 +426,165 @@ function Part2Content() {
 
     if (isLoading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-[#070b16] text-white">
-                <p className="text-sm text-slate-300">Loading...</p>
+            <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f3f9f7] text-slate-900">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(16,185,129,0.18),transparent_35%),radial-gradient(circle_at_84%_16%,rgba(56,189,248,0.18),transparent_35%),radial-gradient(circle_at_50%_100%,rgba(20,184,166,0.10),transparent_44%)]" />
+                <div className="relative rounded-2xl border border-slate-200 bg-white/85 px-6 py-4 shadow-lg backdrop-blur"><p className="text-sm text-slate-600">Loading...</p></div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#070b16] px-6 py-10 text-white lg:px-10">
-            <div className="mx-auto max-w-4xl space-y-6">
-                {/* Header */}
-                <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl sm:p-8">
-                    <p className="text-xs uppercase tracking-[0.18em] text-cyan-200">Step 2 of 3</p>
+        <div className="relative min-h-screen overflow-hidden bg-[#f3f9f7] px-6 py-10 text-slate-900 lg:px-10">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(16,185,129,0.18),transparent_35%),radial-gradient(circle_at_84%_16%,rgba(56,189,248,0.18),transparent_35%),radial-gradient(circle_at_50%_100%,rgba(20,184,166,0.10),transparent_44%)]" />
+            <div className="relative mx-auto max-w-5xl space-y-6">
+                <div className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_20px_70px_-34px_rgba(15,23,42,0.35)] sm:p-8">
+                    <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">Step 2 of 3</p>
                     <h1 className="mt-2 text-3xl font-semibold">Interview Configuration</h1>
-                    <p className="mt-2 text-sm text-slate-400">
-                        Set up interview slots, assessment questions, and interview fallback questions.
-                    </p>
+                    <p className="mt-2 text-sm text-slate-600">Configure slot schedules, assessment mode, and interview fallback questions.</p>
                 </div>
 
-                {/* Error Message */}
-                {errorMessage && (
-                    <div className="rounded-xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
-                        {errorMessage}
-                    </div>
-                )}
+                {errorMessage ? <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{errorMessage}</div> : null}
 
-                {/* ===== SECTION 1A: ASSESSMENT SLOTS ===== */}
-                <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl sm:p-8 space-y-4">
-                    <h2 className="text-lg font-semibold text-white">Assessment Slots (20 minutes each)</h2>
-                    <p className="text-sm text-slate-400">
-                        Generate assessment slots for candidates. Each slot is 20 minutes.
-                    </p>
-
-                    {/* Auto Generate Assessment Slots Form */}
-                    <div className="rounded-lg border border-blue-300/20 bg-blue-400/10 p-4 space-y-3">
-                        <p className="text-xs text-blue-200">
-                            ℹ️ Dates are automatically derived from your campaign window set in Part 1. You only need to set the start time.
-                        </p>
-                        <div className="grid grid-cols-3 gap-4">
-                            <div>
-                                <label className="block text-xs font-medium text-slate-300 mb-2">
-                                    First Slot Time (24h, UTC) <span className="text-rose-400">*</span>
-                                </label>
-                                <input
-                                    type="time"
-                                    value={assessmentFirstSlotTime}
-                                    onChange={(e) => setAssessmentFirstSlotTime(e.target.value)}
-                                    className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white transition focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400/30"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-slate-300 mb-2">
-                                    Number of Slots <span className="text-rose-400">*</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={assessmentSlotCount}
-                                    onChange={(e) => setAssessmentSlotCount(e.target.value)}
-                                    className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white transition focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400/30"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-slate-300 mb-2">
-                                    Max Candidates per Slot <span className="text-rose-400">*</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={assessmentSlotCapacity}
-                                    onChange={(e) => setAssessmentSlotCapacity(e.target.value)}
-                                    className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white transition focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400/30"
-                                />
-                            </div>
+                <section className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_20px_70px_-34px_rgba(15,23,42,0.25)] space-y-4">
+                    <h2 className="text-lg font-semibold">Assessment Slots (20 min each)</h2>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <div>
+                            <label className="mb-2 block text-xs font-medium text-slate-600">First Slot Time (UTC)</label>
+                            <input type="time" value={assessmentFirstSlotTime} onChange={(e) => setAssessmentFirstSlotTime(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30" />
                         </div>
-
-                        <button
-                            onClick={handleAutoGenerateAssessmentSlots}
-                            className="w-full rounded-lg bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
-                        >
-                            Generate Assessment Slots
-                        </button>
+                        <div>
+                            <label className="mb-2 block text-xs font-medium text-slate-600">Number of Slots</label>
+                            <input type="number" min="1" value={assessmentSlotCount} onChange={(e) => setAssessmentSlotCount(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30" />
+                        </div>
+                        <div>
+                            <label className="mb-2 block text-xs font-medium text-slate-600">Candidates per Slot</label>
+                            <input type="number" min="1" value={assessmentSlotCapacity} onChange={(e) => setAssessmentSlotCapacity(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30" />
+                        </div>
                     </div>
-
-                    {/* Assessment Slots List */}
-                    {assessmentSlots.length > 0 && (
+                    <button onClick={handleAutoGenerateAssessmentSlots} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:brightness-110">Generate Assessment Slots</button>
+                    {assessmentSlots.length > 0 ? (
                         <div className="space-y-2">
-                            <p className="text-xs font-semibold text-slate-300">Generated Assessment Slots ({assessmentSlots.length})</p>
                             {assessmentSlots.map((slot, idx) => {
                                 const start = new Date(slot.slotStartUtc);
                                 const end = new Date(slot.slotEndUtc);
                                 return (
-                                    <div key={idx} className="rounded-lg border border-blue-300/20 bg-blue-400/5 p-3">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex-1">
-                                                <p className="text-sm font-medium text-white">
-                                                    {start.toLocaleDateString()} - {start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} to{" "}
-                                                    {end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} UTC
-                                                </p>
-                                                <p className="text-xs text-slate-400 mt-1">20 minutes</p>
-                                            </div>
-                                            <button
-                                                onClick={() => handleRemoveAssessmentSlot(idx)}
-                                                className="text-xs text-rose-300 hover:text-rose-200 font-medium"
-                                            >
-                                                Remove
-                                            </button>
-                                        </div>
+                                    <div key={idx} className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                                        <p className="text-sm text-emerald-900">{start.toLocaleDateString()} {start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} to {end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} UTC</p>
+                                        <button onClick={() => handleRemoveAssessmentSlot(idx)} className="text-xs font-semibold text-rose-700">Remove</button>
                                     </div>
                                 );
                             })}
                         </div>
-                    )}
-                </div>
+                    ) : null}
+                </section>
 
-                {/* ===== SECTION 1B: INTERVIEW SLOTS ===== */}
-                <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl sm:p-8 space-y-4">
-                    <h2 className="text-lg font-semibold text-white">Interview Slots (40 minutes each)</h2>
-                    <p className="text-sm text-slate-400">
-                        Generate interview slots for candidates. Each slot is 40 minutes. Interview slots must not overlap with assessment slots.
-                    </p>
-
-                    {/* Auto Generate Interview Slots Form */}
-                    <div className="rounded-lg border border-emerald-300/20 bg-emerald-400/10 p-4 space-y-3">
-                        <p className="text-xs text-emerald-200">
-                            ℹ️ Dates are automatically derived from your campaign window set in Part 1. Assessment slots must be generated first for validation. You only need to set the start time.
-                        </p>
-                        <div className="grid grid-cols-3 gap-4">
-                            <div>
-                                <label className="block text-xs font-medium text-slate-300 mb-2">
-                                    First Slot Time (24h, UTC) <span className="text-rose-400">*</span>
-                                </label>
-                                <input
-                                    type="time"
-                                    value={interviewFirstSlotTime}
-                                    onChange={(e) => setInterviewFirstSlotTime(e.target.value)}
-                                    className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-slate-300 mb-2">
-                                    Number of Slots <span className="text-rose-400">*</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={interviewSlotCount}
-                                    onChange={(e) => setInterviewSlotCount(e.target.value)}
-                                    className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-slate-300 mb-2">
-                                    Max Candidates per Slot <span className="text-rose-400">*</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={interviewSlotCapacity}
-                                    onChange={(e) => setInterviewSlotCapacity(e.target.value)}
-                                    className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30"
-                                />
-                            </div>
+                <section className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_20px_70px_-34px_rgba(15,23,42,0.25)] space-y-4">
+                    <h2 className="text-lg font-semibold">Interview Slots (40 min each)</h2>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <div>
+                            <label className="mb-2 block text-xs font-medium text-slate-600">First Slot Time (UTC)</label>
+                            <input type="time" value={interviewFirstSlotTime} onChange={(e) => setInterviewFirstSlotTime(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30" />
                         </div>
-
-                        <button
-                            onClick={handleAutoGenerateInterviewSlots}
-                            className="w-full rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-[#041022] transition hover:brightness-110"
-                        >
-                            Generate Interview Slots
-                        </button>
+                        <div>
+                            <label className="mb-2 block text-xs font-medium text-slate-600">Number of Slots</label>
+                            <input type="number" min="1" value={interviewSlotCount} onChange={(e) => setInterviewSlotCount(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30" />
+                        </div>
+                        <div>
+                            <label className="mb-2 block text-xs font-medium text-slate-600">Candidates per Slot</label>
+                            <input type="number" min="1" value={interviewSlotCapacity} onChange={(e) => setInterviewSlotCapacity(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30" />
+                        </div>
                     </div>
-
-                    {/* Interview Slots List */}
-                    {interviewSlots.length > 0 && (
+                    <button onClick={handleAutoGenerateInterviewSlots} className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:brightness-110">Generate Interview Slots</button>
+                    {interviewSlots.length > 0 ? (
                         <div className="space-y-2">
-                            <p className="text-xs font-semibold text-slate-300">Generated Interview Slots ({interviewSlots.length})</p>
                             {interviewSlots.map((slot, idx) => {
                                 const start = new Date(slot.slotStartUtc);
                                 const end = new Date(slot.slotEndUtc);
                                 return (
-                                    <div key={idx} className="rounded-lg border border-emerald-300/20 bg-emerald-400/5 p-3">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex-1">
-                                                <p className="text-sm font-medium text-white">
-                                                    {start.toLocaleDateString()} - {start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} to{" "}
-                                                    {end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} UTC
-                                                </p>
-                                                <p className="text-xs text-slate-400 mt-1">40 minutes</p>
-                                            </div>
-                                            <button
-                                                onClick={() => handleRemoveInterviewSlot(idx)}
-                                                className="text-xs text-rose-300 hover:text-rose-200 font-medium"
-                                            >
-                                                Remove
-                                            </button>
-                                        </div>
+                                    <div key={idx} className="flex items-center justify-between rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2">
+                                        <p className="text-sm text-cyan-900">{start.toLocaleDateString()} {start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} to {end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} UTC</p>
+                                        <button onClick={() => handleRemoveInterviewSlot(idx)} className="text-xs font-semibold text-rose-700">Remove</button>
                                     </div>
                                 );
                             })}
                         </div>
-                    )}
-                </div>
+                    ) : null}
+                </section>
 
-                {/* ===== SECTION 2: SCHEDULE PREVIEW ===== */}
-                {(assessmentSlots.length > 0 || interviewSlots.length > 0) && (
-                    <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl sm:p-8 space-y-4">
-                        <h2 className="text-lg font-semibold text-white">Interview Schedule Preview</h2>
-                        <div className="rounded-lg border border-indigo-300/20 bg-indigo-400/10 p-4 space-y-3">
-                            {schedulePreview.assessmentStart && (
-                                <div>
-                                    <p className="text-xs font-medium text-slate-300 mb-1">Assessment Window</p>
-                                    <p className="text-sm text-indigo-200">
-                                        {new Date(schedulePreview.assessmentStart).toLocaleDateString()} {new Date(schedulePreview.assessmentStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} to {new Date(schedulePreview.assessmentEnd!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} UTC
-                                    </p>
-                                </div>
-                            )}
-                            {schedulePreview.interviewStart && (
-                                <div>
-                                    <p className="text-xs font-medium text-slate-300 mb-1">Interview Window</p>
-                                    <p className="text-sm text-indigo-200">
-                                        {new Date(schedulePreview.interviewStart).toLocaleDateString()} {new Date(schedulePreview.interviewStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} to {new Date(schedulePreview.interviewEnd!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} UTC
-                                    </p>
-                                </div>
-                            )}
+                {(schedulePreview.assessmentStart || schedulePreview.interviewStart) ? (
+                    <section className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_20px_70px_-34px_rgba(15,23,42,0.25)]">
+                        <h2 className="text-lg font-semibold">Schedule Preview</h2>
+                        <div className="mt-3 space-y-2 text-sm text-slate-700">
+                            {schedulePreview.assessmentStart ? <p>Assessment: {new Date(schedulePreview.assessmentStart).toLocaleString()} to {new Date(schedulePreview.assessmentEnd as string).toLocaleString()}</p> : null}
+                            {schedulePreview.interviewStart ? <p>Interview: {new Date(schedulePreview.interviewStart).toLocaleString()} to {new Date(schedulePreview.interviewEnd as string).toLocaleString()}</p> : null}
                         </div>
-                    </div>
-                )}
+                    </section>
+                ) : null}
 
-                {/* ===== SECTION 3: ASSESSMENT QUESTIONS ===== */}
-                <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl sm:p-8 space-y-4">
-                    <h2 className="text-lg font-semibold text-white">Assessment Round (20 mins MCQ)</h2>
-
-                    {/* Toggle AI vs Custom */}
+                <section className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_20px_70px_-34px_rgba(15,23,42,0.25)] space-y-4">
+                    <h2 className="text-lg font-semibold">Assessment Questions</h2>
                     <div className="flex gap-3">
-                        <button
-                            onClick={() => {
-                                setIsAiGenerated(true);
-                                setAssessmentQuestions([]);
-                            }}
-                            className={`flex-1 rounded-lg border px-4 py-3 text-sm font-semibold transition ${isAiGenerated
-                                ? "border-cyan-500 bg-cyan-400/10 text-cyan-200"
-                                : "border-white/20 bg-white/5 text-slate-300 hover:bg-white/10"
-                                }`}
-                        >
-                            AI-Generated (Recommended)
-                        </button>
-                        <button
-                            onClick={() => setIsAiGenerated(false)}
-                            className={`flex-1 rounded-lg border px-4 py-3 text-sm font-semibold transition ${!isAiGenerated
-                                ? "border-amber-500 bg-amber-400/10 text-amber-200"
-                                : "border-white/20 bg-white/5 text-slate-300 hover:bg-white/10"
-                                }`}
-                        >
-                            Custom Questions
-                        </button>
+                        <button onClick={() => { setIsAiGenerated(true); setAssessmentQuestions([]); }} className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold ${isAiGenerated ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-300 bg-white text-slate-600"}`}>AI Generated</button>
+                        <button onClick={() => setIsAiGenerated(false)} className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold ${!isAiGenerated ? "border-amber-200 bg-amber-50 text-amber-800" : "border-slate-300 bg-white text-slate-600"}`}>Custom Questions</button>
                     </div>
-
                     {isAiGenerated ? (
-                        <div className="rounded-lg border border-cyan-300/20 bg-cyan-400/10 p-4 text-sm text-cyan-200">
-                            ✓ AI will generate MCQ questions based on job description and required skills. You can edit them after creation.
-                        </div>
+                        <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">AI will generate MCQs from the role and skills data.</p>
                     ) : (
-                        <div className="rounded-lg border border-amber-300/20 bg-amber-400/10 p-4 space-y-3">
-                            <p className="text-sm font-semibold text-amber-200">Add Custom MCQ Questions</p>
-
-                            <div>
-                                <label className="block text-xs font-medium text-slate-300 mb-2">
-                                    Question Text <span className="text-rose-400">*</span>
-                                </label>
-                                <textarea
-                                    rows={2}
-                                    placeholder="e.g., What is the correct way to handle state in React?"
-                                    value={newAssessmentQuestion.questionText}
-                                    onChange={(e) =>
-                                        setNewAssessmentQuestion({
-                                            ...newAssessmentQuestion,
-                                            questionText: e.target.value,
-                                        })
-                                    }
-                                    className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white placeholder-slate-400 transition focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/30"
-                                />
-                            </div>
-
-                            <div>
-                                <p className="text-xs font-medium text-slate-300 mb-2">Options</p>
+                        <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                            <textarea rows={2} placeholder="Question text" value={newAssessmentQuestion.questionText} onChange={(e) => setNewAssessmentQuestion({ ...newAssessmentQuestion, questionText: e.target.value })} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900" />
+                            {newAssessmentQuestion.options.map((option, idx) => (
+                                <div key={option.label} className="flex items-center gap-2">
+                                    <input type="text" placeholder={`Option ${option.label}`} value={option.text} onChange={(e) => {
+                                        const updated = [...newAssessmentQuestion.options];
+                                        updated[idx].text = e.target.value;
+                                        setNewAssessmentQuestion({ ...newAssessmentQuestion, options: updated });
+                                    }} className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900" />
+                                    <label className="text-xs text-slate-700"><input type="radio" name="correct-option" checked={option.isCorrect} onChange={() => {
+                                        const updated = newAssessmentQuestion.options.map((o) => ({ ...o, isCorrect: o.label === option.label }));
+                                        setNewAssessmentQuestion({ ...newAssessmentQuestion, options: updated });
+                                    }} className="mr-1" />Correct</label>
+                                </div>
+                            ))}
+                            <button onClick={handleAddAssessmentQuestion} className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white">Add Question</button>
+                            {assessmentQuestions.length > 0 ? (
                                 <div className="space-y-2">
-                                    {newAssessmentQuestion.options.map((option, idx) => (
-                                        <div key={idx} className="flex gap-2 items-center">
-                                            <input
-                                                type="text"
-                                                placeholder={`Option ${option.label}`}
-                                                value={option.text}
-                                                onChange={(e) => {
-                                                    const updated = [...newAssessmentQuestion.options];
-                                                    updated[idx].text = e.target.value;
-                                                    setNewAssessmentQuestion({
-                                                        ...newAssessmentQuestion,
-                                                        options: updated,
-                                                    });
-                                                }}
-                                                className="flex-1 rounded-lg border border-white/20 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-slate-400 transition focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/30"
-                                            />
-                                            <label className="flex items-center gap-2 text-xs">
-                                                <input
-                                                    type="radio"
-                                                    name="correct-option"
-                                                    checked={option.isCorrect}
-                                                    onChange={() => {
-                                                        const updated = newAssessmentQuestion.options.map((o) => ({
-                                                            ...o,
-                                                            isCorrect: o.label === option.label,
-                                                        }));
-                                                        setNewAssessmentQuestion({
-                                                            ...newAssessmentQuestion,
-                                                            options: updated,
-                                                        });
-                                                    }}
-                                                    className="h-4 w-4 cursor-pointer"
-                                                />
-                                                <span className="text-amber-200">Correct</span>
-                                            </label>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={handleAddAssessmentQuestion}
-                                className="w-full rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-[#041022] transition hover:brightness-110"
-                            >
-                                + Add Question
-                            </button>
-
-                            {/* Assessment Questions List */}
-                            {assessmentQuestions.length > 0 && (
-                                <div className="mt-4 space-y-2 border-t border-amber-300/20 pt-4">
-                                    <p className="text-xs font-semibold text-slate-300">Added Questions ({assessmentQuestions.length})</p>
                                     {assessmentQuestions.map((q, idx) => (
-                                        <div key={idx} className="rounded-lg border border-amber-300/20 bg-amber-400/5 p-3">
-                                            <p className="text-sm font-medium text-white mb-2">
-                                                {idx + 1}. {q.questionText}
-                                            </p>
-                                            <div className="text-xs text-slate-400 space-y-1">
-                                                {q.options.map((opt) => (
-                                                    <p key={opt.label}>
-                                                        {opt.label}. {opt.text} {opt.isCorrect && <span className="text-amber-200">✓</span>}
-                                                    </p>
-                                                ))}
-                                            </div>
-                                            <button
-                                                onClick={() => handleRemoveAssessmentQuestion(idx)}
-                                                className="mt-2 text-xs text-rose-300 hover:text-rose-200"
-                                            >
-                                                Remove
-                                            </button>
+                                        <div key={idx} className="rounded-xl border border-amber-200 bg-white px-3 py-2">
+                                            <p className="text-sm font-semibold text-slate-900">{idx + 1}. {q.questionText}</p>
+                                            <button onClick={() => handleRemoveAssessmentQuestion(idx)} className="mt-1 text-xs text-rose-700">Remove</button>
                                         </div>
                                     ))}
                                 </div>
-                            )}
+                            ) : null}
                         </div>
                     )}
-                </div>
+                </section>
 
-                {/* ===== SECTION 4: INTERVIEW FALLBACK QUESTIONS ===== */}
-                <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl sm:p-8 space-y-4">
-                    <h2 className="text-lg font-semibold text-white">Interview Round (40 mins) - Fallback Questions</h2>
-                    <p className="text-sm text-slate-400">
-                        Add fallback questions to use if AI fails during live interviews.
-                    </p>
-
-                    <div className="rounded-lg border border-cyan-300/20 bg-cyan-400/10 p-4 space-y-3">
-                        <div>
-                            <label className="block text-xs font-medium text-slate-300 mb-2">
-                                Question <span className="text-rose-400">*</span>
-                            </label>
-                            <textarea
-                                rows={2}
-                                placeholder="e.g., Describe a challenging project you worked on."
-                                value={newInterviewQuestion.questionText}
-                                onChange={(e) =>
-                                    setNewInterviewQuestion({
-                                        ...newInterviewQuestion,
-                                        questionText: e.target.value,
-                                    })
-                                }
-                                className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white placeholder-slate-400 transition focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-medium text-slate-300 mb-2">Difficulty</label>
-                            <select
-                                value={newInterviewQuestion.difficulty}
-                                onChange={(e) =>
-                                    setNewInterviewQuestion({
-                                        ...newInterviewQuestion,
-                                        difficulty: e.target.value as "EASY" | "MEDIUM" | "HARD",
-                                    })
-                                }
-                                className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white transition focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30"
-                            >
-                                <option value="EASY">Easy</option>
-                                <option value="MEDIUM">Medium</option>
-                                <option value="HARD">Hard</option>
-                            </select>
-                        </div>
-
-                        <button
-                            onClick={handleAddInterviewQuestion}
-                            className="w-full rounded-lg bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-[#041022] transition hover:brightness-110"
-                        >
-                            + Add Question
-                        </button>
-                    </div>
-
-                    {/* Interview Questions List */}
-                    {interviewQuestions.length > 0 && (
+                <section className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_20px_70px_-34px_rgba(15,23,42,0.25)] space-y-4">
+                    <h2 className="text-lg font-semibold">Interview Fallback Questions</h2>
+                    <textarea rows={2} placeholder="Fallback question" value={newInterviewQuestion.questionText} onChange={(e) => setNewInterviewQuestion({ ...newInterviewQuestion, questionText: e.target.value })} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900" />
+                    <select value={newInterviewQuestion.difficulty} onChange={(e) => setNewInterviewQuestion({ ...newInterviewQuestion, difficulty: e.target.value as "EASY" | "MEDIUM" | "HARD" })} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900">
+                        <option value="EASY">Easy</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="HARD">Hard</option>
+                    </select>
+                    <button onClick={handleAddInterviewQuestion} className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white">Add Question</button>
+                    {interviewQuestions.length > 0 ? (
                         <div className="space-y-2">
-                            <p className="text-xs font-semibold text-slate-300">Added Questions ({interviewQuestions.length})</p>
                             {interviewQuestions.map((q, idx) => (
-                                <div key={idx} className="rounded-lg border border-cyan-300/20 bg-cyan-400/5 p-3">
-                                    <p className="text-sm font-medium text-white">
-                                        {idx + 1}. {q.questionText}
-                                    </p>
-                                    <p className="text-xs text-cyan-300 mt-1">Difficulty: {q.difficulty}</p>
-                                    <button
-                                        onClick={() => handleRemoveInterviewQuestion(idx)}
-                                        className="mt-2 text-xs text-rose-300 hover:text-rose-200"
-                                    >
-                                        Remove
-                                    </button>
+                                <div key={idx} className="rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2">
+                                    <p className="text-sm font-semibold text-slate-900">{idx + 1}. {q.questionText}</p>
+                                    <p className="text-xs text-cyan-800">Difficulty: {q.difficulty}</p>
+                                    <button onClick={() => handleRemoveInterviewQuestion(idx)} className="mt-1 text-xs text-rose-700">Remove</button>
                                 </div>
                             ))}
                         </div>
-                    )}
-                </div>
+                    ) : null}
+                </section>
 
-                {/* Action Buttons */}
                 <div className="flex gap-3">
-                    <Link
-                        href={`/organization/create-interview?interviewId=${interviewId}&step=1`}
-                        className="inline-flex rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-                    >
-                        ← Back to Part 1
-                    </Link>
-                    <button
-                        onClick={handleSavePart2}
-                        disabled={isSaving}
-                        className="ml-auto inline-flex rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-400 px-6 py-2 text-sm font-semibold text-[#041022] transition hover:shadow-lg hover:shadow-cyan-500/30 disabled:opacity-70"
-                    >
-                        {isSaving ? "Saving..." : "Next: Part 3"}
-                    </button>
+                    <Link href={`/organization/create-interview?interviewId=${interviewId}&step=1`} className="inline-flex rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800">Back to Part 1</Link>
+                    <button onClick={handleSavePart2} disabled={isSaving} className="ml-auto inline-flex rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 px-6 py-2 text-sm font-semibold text-white disabled:opacity-70">{isSaving ? "Saving..." : "Next: Part 3"}</button>
                 </div>
             </div>
         </div>
@@ -913,9 +593,7 @@ function Part2Content() {
 
 export default function Part2Page() {
     return (
-        <Suspense
-            fallback={<div className="flex min-h-screen items-center justify-center bg-[#070b16] text-white">Loading...</div>}
-        >
+        <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-[#f3f9f7] text-slate-700">Loading...</div>}>
             <Part2Content />
         </Suspense>
     );

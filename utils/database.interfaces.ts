@@ -153,6 +153,7 @@ export interface Application {
     candidate_email: string;
     candidate_phone: string | null;
     resume_file_path: string | null;
+    candidate_photo_path: string | null;
     resume_file_size: number | null;
     status: ApplicationStatus | null;
     assigned_slot_id: number | null;

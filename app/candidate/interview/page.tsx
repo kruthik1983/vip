@@ -813,16 +813,19 @@ function CandidateInterviewContent() {
 
     if (isLoading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-[#070b16] text-white">
-                <p className="text-sm text-slate-300">Loading interview...</p>
+            <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#fff8ee] text-slate-900">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_12%,rgba(20,184,166,0.18),transparent_35%),radial-gradient(circle_at_86%_20%,rgba(245,158,11,0.2),transparent_32%)]" />
+                <p className="relative rounded-xl border border-slate-200 bg-white/90 px-4 py-2 text-sm text-slate-700 shadow-sm">
+                    Loading interview...
+                </p>
             </div>
         );
     }
 
     if (!data) {
         return (
-            <div className="min-h-screen bg-[#070b16] px-6 py-10 text-white lg:px-10">
-                <div className="mx-auto max-w-2xl rounded-xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+            <div className="min-h-screen bg-[#fff8ee] px-6 py-10 text-slate-900 lg:px-10">
+                <div className="mx-auto max-w-2xl rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                     {errorMessage ?? "Interview unavailable"}
                 </div>
             </div>
@@ -830,31 +833,33 @@ function CandidateInterviewContent() {
     }
 
     return (
-        <div className="min-h-screen bg-[#070b16] px-6 py-10 text-white lg:px-10">
-            <div className="mx-auto max-w-4xl space-y-6">
-                <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl sm:p-8">
-                    <p className="text-xs uppercase tracking-[0.18em] text-cyan-200">Candidate Interview</p>
-                    <h1 className="mt-2 text-3xl font-semibold">{data.positionTitle ?? data.interviewTitle}</h1>
-                    <p className="mt-2 text-sm text-slate-300">Candidate: {data.candidateName}</p>
-                    <p className="mt-1 text-sm text-slate-300">Duration: {data.durationMinutes ?? "-"} minutes</p>
+        <div className="relative min-h-screen overflow-hidden bg-[#fff8ee] px-6 py-10 text-slate-900 lg:px-10">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_12%,rgba(20,184,166,0.18),transparent_35%),radial-gradient(circle_at_86%_20%,rgba(245,158,11,0.2),transparent_32%)]" />
+
+            <div className="relative mx-auto max-w-4xl space-y-6">
+                <div className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_20px_60px_-34px_rgba(15,23,42,0.45)] sm:p-8">
+                    <p className="text-xs uppercase tracking-[0.18em] text-teal-700">Candidate Interview</p>
+                    <h1 className="mt-2 text-3xl font-semibold text-slate-900">{data.positionTitle ?? data.interviewTitle}</h1>
+                    <p className="mt-2 text-sm text-slate-600">Candidate: {data.candidateName}</p>
+                    <p className="mt-1 text-sm text-slate-600">Duration: {data.durationMinutes ?? "-"} minutes</p>
                 </div>
 
                 {!data.endedAt ? (
-                    <div className="rounded-2xl border border-cyan-300/30 bg-cyan-400/10 p-6 backdrop-blur-xl">
-                        <h2 className="text-lg font-semibold text-cyan-100">Interview Environment Check</h2>
-                        <p className="mt-2 text-sm text-cyan-50/90">
+                    <div className="rounded-3xl border border-teal-200 bg-teal-50/70 p-6 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]">
+                        <h2 className="text-lg font-semibold text-teal-900">Interview Environment Check</h2>
+                        <p className="mt-2 text-sm text-teal-800">
                             Before proceeding: enable camera, microphone, and stay in fullscreen mode.
                         </p>
 
                         <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                            <div className={`rounded-lg border px-3 py-2 text-sm ${cameraReady ? "border-emerald-300/40 bg-emerald-500/10 text-emerald-100" : "border-white/20 bg-white/5 text-slate-200"}`}>
-                                Camera: {cameraReady ? "Ready" : "Pending"}
+                            <div className={`rounded-lg border px-3 py-2 text-sm font-semibold ${cameraReady ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                                Camera: {cameraReady ? "✓ Ready" : "○ Pending"}
                             </div>
-                            <div className={`rounded-lg border px-3 py-2 text-sm ${microphoneReady ? "border-emerald-300/40 bg-emerald-500/10 text-emerald-100" : "border-white/20 bg-white/5 text-slate-200"}`}>
-                                Microphone: {microphoneReady ? "Ready" : "Pending"}
+                            <div className={`rounded-lg border px-3 py-2 text-sm font-semibold ${microphoneReady ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                                Microphone: {microphoneReady ? "✓ Ready" : "○ Pending"}
                             </div>
-                            <div className={`rounded-lg border px-3 py-2 text-sm ${fullscreenReady ? "border-emerald-300/40 bg-emerald-500/10 text-emerald-100" : "border-white/20 bg-white/5 text-slate-200"}`}>
-                                Fullscreen: {fullscreenReady ? "Active" : "Not active"}
+                            <div className={`rounded-lg border px-3 py-2 text-sm font-semibold ${fullscreenReady ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                                Fullscreen: {fullscreenReady ? "✓ Active" : "○ Not active"}
                             </div>
                         </div>
 
@@ -863,44 +868,44 @@ function CandidateInterviewContent() {
                                 type="button"
                                 onClick={runEnvironmentChecks}
                                 disabled={isCheckingEnvironment}
-                                className="inline-flex rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 px-5 py-2 text-sm font-semibold text-[#041022] transition hover:brightness-110 disabled:opacity-70"
+                                className="inline-flex rounded-lg bg-gradient-to-r from-amber-500 to-teal-500 px-5 py-2 text-sm font-semibold text-white transition hover:brightness-105 disabled:opacity-70"
                             >
                                 {isCheckingEnvironment ? "Checking..." : "Run Camera/Mic/Fullscreen Check"}
                             </button>
                         </div>
 
-                        <p className="mt-3 text-xs text-slate-300">
-                            Proctoring Recorder: {proctoringActive ? "Active" : "Not active"}
+                        <p className="mt-3 text-xs font-semibold text-teal-700">
+                            Proctoring Recorder: <span className={proctoringActive ? "text-emerald-700" : "text-amber-700"}>{proctoringActive ? "✓ Active" : "○ Not active"}</span>
                         </p>
 
-                        <video ref={previewRef} muted playsInline className="mt-4 w-full max-w-md rounded-lg border border-white/20 bg-black/40" />
+                        <video ref={previewRef} muted playsInline className="mt-4 w-full max-w-md rounded-xl border border-slate-200 bg-slate-900" />
                     </div>
                 ) : null}
 
                 {errorMessage ? (
-                    <div className="rounded-xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                         {errorMessage}
                     </div>
                 ) : null}
 
                 {successMessage ? (
-                    <div className="rounded-xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                         {successMessage}
                     </div>
                 ) : null}
 
                 {data.endedAt ? (
-                    <div className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 p-6 backdrop-blur-xl">
-                        <h2 className="text-lg font-semibold text-emerald-100">Interview Submitted</h2>
-                        <p className="mt-2 text-sm text-emerald-200">
+                    <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.45)]">
+                        <h2 className="text-lg font-semibold text-emerald-900">Interview Submitted</h2>
+                        <p className="mt-2 text-sm text-emerald-800">
                             Total Questions Answered: {data.result?.totalQuestionsAsked ?? "-"}
                         </p>
                     </div>
                 ) : interviewComplete ? (
                     <div className="space-y-4">
-                        <div className="rounded-2xl border border-blue-300/30 bg-blue-400/10 p-6 backdrop-blur-xl">
-                            <h2 className="text-lg font-semibold text-blue-100">Interview Complete</h2>
-                            <p className="mt-2 text-sm text-blue-200">
+                        <div className="rounded-3xl border border-teal-200 bg-teal-50 p-6 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.45)]">
+                            <h2 className="text-lg font-semibold text-teal-900">Interview Complete</h2>
+                            <p className="mt-2 text-sm text-teal-800">
                                 You have answered {totalQuestionsAsked} questions. Click the button below to submit your interview.
                             </p>
                         </div>
@@ -911,19 +916,19 @@ function CandidateInterviewContent() {
                                 void handleSubmit();
                             }}
                             disabled={isSubmitting}
-                            className="inline-flex rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-400 px-5 py-2 text-sm font-semibold text-[#041022] transition hover:brightness-110 disabled:opacity-70"
+                            className="inline-flex rounded-lg bg-gradient-to-r from-amber-500 to-teal-500 px-5 py-2 text-sm font-semibold text-white transition hover:brightness-105 disabled:opacity-70"
                         >
                             {isSubmitting ? "Submitting..." : "Submit Interview"}
                         </button>
                     </div>
                 ) : currentQuestion ? (
                     <div className="space-y-4">
-                        <div className="rounded-2xl border border-white/15 bg-white/5 p-5 backdrop-blur-xl">
-                            <p className="text-sm font-semibold text-cyan-100">Question {totalQuestionsAsked + 1}</p>
-                            <p className="mt-3 text-base text-white">{currentQuestion}</p>
+                        <div className="rounded-3xl border border-slate-200 bg-white/92 p-5 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]">
+                            <p className="text-sm font-semibold text-teal-700">Question {totalQuestionsAsked + 1}</p>
+                            <p className="mt-3 text-base font-semibold text-slate-900">{currentQuestion}</p>
 
                             {remainingSeconds !== null && (
-                                <p className="mt-3 text-xs text-slate-400">
+                                <p className="mt-3 text-xs font-semibold text-amber-700">
                                     Time remaining: {Math.floor(remainingSeconds / 60)}:{String(remainingSeconds % 60).padStart(2, "0")}
                                 </p>
                             )}
@@ -933,15 +938,15 @@ function CandidateInterviewContent() {
                                     type="button"
                                     onClick={() => speakQuestion(currentQuestion, false)}
                                     disabled={isReadingQuestion}
-                                    className="mt-3 inline-flex rounded-lg border border-blue-300/40 bg-blue-500/20 px-3 py-1 text-xs font-semibold text-blue-100 transition hover:bg-blue-500/30 disabled:opacity-70"
+                                    className="mt-3 inline-flex rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100 disabled:opacity-70"
                                 >
                                     {isReadingQuestion ? "Reading..." : "Read Question Aloud"}
                                 </button>
                             ) : null}
 
-                            <div className="mt-4 rounded-lg border border-white/20 bg-white/5 p-4">
-                                <p className="text-xs uppercase tracking-wider text-slate-300">Your Spoken Answer</p>
-                                <p className="mt-2 text-sm text-slate-200">
+                            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                <p className="text-xs uppercase tracking-wider font-semibold text-slate-600">Your Spoken Answer</p>
+                                <p className="mt-2 text-sm text-slate-700">
                                     Speak your answer clearly. Stop recording once finished.
                                 </p>
 
@@ -950,7 +955,7 @@ function CandidateInterviewContent() {
                                         type="button"
                                         onClick={startAnswerRecording}
                                         disabled={isRecordingAnswer || isUploadingAnswer}
-                                        className="inline-flex rounded-lg bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2 text-sm font-semibold text-[#041022] transition hover:brightness-110 disabled:opacity-70"
+                                        className="inline-flex rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:brightness-105 disabled:opacity-70"
                                     >
                                         {isRecordingAnswer ? "Recording..." : "Start Recording"}
                                     </button>
@@ -958,27 +963,29 @@ function CandidateInterviewContent() {
                                         type="button"
                                         onClick={stopAnswerRecording}
                                         disabled={!isRecordingAnswer || isUploadingAnswer}
-                                        className="inline-flex rounded-lg bg-gradient-to-r from-rose-400 to-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-70"
+                                        className="inline-flex rounded-lg bg-gradient-to-r from-rose-500 to-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:brightness-105 disabled:opacity-70"
                                     >
                                         {isUploadingAnswer ? "Uploading..." : "Stop Recording"}
                                     </button>
                                 </div>
 
-                                <p className="mt-3 text-xs text-slate-300">
-                                    Status: {isUploadingAnswer ? "Uploading answer audio..." : isRecordingAnswer ? "Recording in progress" : currentVoiceRecordingPath ? "Answer recorded and saved" : "No recording yet"}
+                                <p className="mt-3 text-xs font-semibold text-slate-600">
+                                    Status: <span className={isUploadingAnswer ? "text-amber-700" : isRecordingAnswer ? "text-red-700" : currentVoiceRecordingPath ? "text-emerald-700" : "text-slate-600"}>
+                                        {isUploadingAnswer ? "Uploading answer audio..." : isRecordingAnswer ? "Recording in progress" : currentVoiceRecordingPath ? "Answer recorded and saved" : "No recording yet"}
+                                    </span>
                                 </p>
                                 {currentAnswerDurationSeconds > 0 ? (
-                                    <p className="mt-1 text-xs text-slate-400">Recorded duration: {currentAnswerDurationSeconds}s</p>
+                                    <p className="mt-1 text-xs text-slate-500">Recorded duration: {currentAnswerDurationSeconds}s</p>
                                 ) : null}
                                 {speechToTextSupported ? (
                                     <div className="mt-3">
-                                        <p className="text-xs uppercase tracking-wider text-slate-300">Live Transcript</p>
-                                        <div className="mt-1 max-h-24 overflow-y-auto rounded border border-white/15 bg-black/20 px-2 py-2 text-xs text-slate-200">
+                                        <p className="text-xs uppercase tracking-wider font-semibold text-slate-600">Live Transcript</p>
+                                        <div className="mt-1 max-h-24 overflow-y-auto rounded border border-slate-200 bg-white px-2 py-2 text-xs text-slate-700">
                                             {currentTranscript || "Transcript will appear while you speak."}
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="mt-2 text-xs text-amber-200">
+                                    <p className="mt-2 text-xs text-amber-700">
                                         Browser speech-to-text is unavailable. Full interview audio/video will still be stored.
                                     </p>
                                 )}
@@ -989,7 +996,7 @@ function CandidateInterviewContent() {
                                     type="button"
                                     onClick={handleAnswerSubmit}
                                     disabled={isFetchingNext || isRecordingAnswer || isUploadingAnswer || !currentVoiceRecordingPath}
-                                    className="inline-flex rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 px-5 py-2 text-sm font-semibold text-[#041022] transition hover:brightness-110 disabled:opacity-70"
+                                    className="inline-flex rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 px-5 py-2 text-sm font-semibold text-white transition hover:brightness-105 disabled:opacity-70"
                                 >
                                     {isFetchingNext ? "Loading next question..." : "Submit Recorded Answer"}
                                 </button>
@@ -997,7 +1004,7 @@ function CandidateInterviewContent() {
                                     type="button"
                                     onClick={handleFinalizeInterview}
                                     disabled={isSubmitting || isRecordingAnswer || isUploadingAnswer || isFetchingNext}
-                                    className="inline-flex rounded-lg border border-amber-300/40 bg-amber-500/20 px-5 py-2 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/30 disabled:opacity-70"
+                                    className="inline-flex rounded-lg border border-amber-200 bg-amber-50 px-5 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-70"
                                 >
                                     {isSubmitting ? "Finalizing..." : "Finalize Interview"}
                                 </button>
@@ -1007,9 +1014,9 @@ function CandidateInterviewContent() {
                 ) : null}
 
                 {!data.endedAt && !interviewComplete && !currentQuestion && proctoringActive ? (
-                    <div className="rounded-2xl border border-blue-300/30 bg-blue-400/10 p-6 backdrop-blur-xl">
-                        <h2 className="text-lg font-semibold text-blue-100">Waiting for first question...</h2>
-                        <p className="mt-2 text-sm text-blue-200">
+                    <div className="rounded-3xl border border-cyan-200 bg-cyan-50 p-6 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.45)]">
+                        <h2 className="text-lg font-semibold text-cyan-900">Waiting for first question...</h2>
+                        <p className="mt-2 text-sm text-cyan-800">
                             Your environment is ready. The system is preparing your first question.
                         </p>
                     </div>
@@ -1022,7 +1029,11 @@ function CandidateInterviewContent() {
 export default function CandidateInterviewPage() {
     return (
         <Suspense
-            fallback={<div className="flex min-h-screen items-center justify-center bg-[#070b16] text-white">Loading interview...</div>}
+            fallback={
+                <div className="flex min-h-screen items-center justify-center bg-[#fff8ee] text-slate-700">
+                    Loading interview...
+                </div>
+            }
         >
             <CandidateInterviewContent />
         </Suspense>

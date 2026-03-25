@@ -32,6 +32,8 @@ type CandidateReportData = {
         candidatePhone: string | null;
         resumePath: string | null;
         resumeUrl: string | null;
+        photoPath: string | null;
+        photoUrl: string | null;
         status: string;
         appliedAt: string;
     };
@@ -86,10 +88,7 @@ type CandidateReportData = {
 };
 
 function formatDate(value: string | null) {
-    if (!value) {
-        return "-";
-    }
-
+    if (!value) return "-";
     return new Date(value).toLocaleString("en-IN", {
         day: "2-digit",
         month: "short",
@@ -113,6 +112,15 @@ export default function CandidateAiReportPage() {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [data, setData] = useState<CandidateReportData | null>(null);
+    const [activeTab, setActiveTab] = useState<"report" | "transcript" | "assessment">("report");
+
+    const candidateInitials = useMemo(() => {
+        const source = data?.candidate.candidateName?.trim() || "Candidate";
+        const parts = source.split(/\s+/).filter(Boolean);
+        if (parts.length === 0) return "C";
+        if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
+        return `${parts[0].slice(0, 1)}${parts[1].slice(0, 1)}`.toUpperCase();
+    }, [data?.candidate.candidateName]);
 
     async function fetchData() {
         if (!Number.isInteger(interviewId) || !Number.isInteger(candidateId) || interviewId <= 0 || candidateId <= 0) {
@@ -131,9 +139,7 @@ export default function CandidateAiReportPage() {
         }
 
         const response = await fetch(`/api/organization/interviews/manage/${interviewId}/candidate-info/${candidateId}`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
         });
 
         const result = await response.json();
@@ -156,9 +162,7 @@ export default function CandidateAiReportPage() {
             setErrorMessage(null);
 
             const currentAdmin = await getCurrentOrganizationAdmin();
-            if (!mounted) {
-                return;
-            }
+            if (!mounted) return;
 
             if (!currentAdmin) {
                 router.replace("/organization/organization_auth");
@@ -257,236 +261,155 @@ export default function CandidateAiReportPage() {
 
     if (isLoading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-[#070b16] text-white">
-                <p className="text-sm text-slate-300">Loading candidate AI report...</p>
+            <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f3f9f7] text-slate-900">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(16,185,129,0.18),transparent_35%),radial-gradient(circle_at_84%_16%,rgba(56,189,248,0.18),transparent_35%)]" />
+                <div className="relative rounded-2xl border border-slate-200 bg-white/90 px-6 py-4 shadow-lg">Loading candidate report...</div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#070b16] px-6 py-10 text-white lg:px-10">
-            <div className="mx-auto max-w-5xl space-y-6">
-                <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl sm:p-8">
+        <div className="relative min-h-screen overflow-hidden bg-[#f3f9f7] px-6 py-10 text-slate-900 lg:px-10">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(16,185,129,0.18),transparent_35%),radial-gradient(circle_at_84%_16%,rgba(56,189,248,0.18),transparent_35%)]" />
+            <div className="relative mx-auto max-w-6xl space-y-6">
+                <header className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_18px_60px_-30px_rgba(15,23,42,0.45)] sm:p-8">
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                            <p className="text-xs uppercase tracking-[0.18em] text-cyan-200">Candidate AI Report</p>
-                            <h1 className="mt-2 text-3xl font-semibold">{data?.candidate.candidateName || "Candidate"}</h1>
-                            <p className="mt-1 text-sm text-slate-300">{data?.candidate.candidateEmail}</p>
-                            <p className="mt-1 text-sm text-slate-400">Phone: {data?.candidate.candidatePhone || "-"}</p>
-                            <p className="mt-1 text-sm text-slate-400">Applied: {formatDate(data?.candidate.appliedAt ?? null)}</p>
-                            <p className="mt-1 text-sm text-slate-400">Current Status: {data?.candidate.status || "-"}</p>
-                            <p className="mt-2 text-sm text-slate-400">
-                                Interview: {data?.interview.title || `#${interviewId}`}
-                                {data?.interview.positionTitle ? ` (${data.interview.positionTitle})` : ""}
-                            </p>
-                            {data?.candidate.resumeUrl ? (
-                                <a
-                                    href={data.candidate.resumeUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="mt-3 inline-flex rounded border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-200 hover:bg-cyan-400/20"
-                                >
-                                    View Resume
-                                </a>
+                        <div className="flex items-start gap-4">
+                            {data?.candidate.photoUrl ? (
+                                <img
+                                    src={data.candidate.photoUrl}
+                                    alt={`${data.candidate.candidateName} photo`}
+                                    className="h-20 w-20 rounded-xl border border-slate-200 object-cover"
+                                />
                             ) : (
-                                <p className="mt-2 text-xs text-slate-500">Resume not available</p>
+                                <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-xl font-semibold text-slate-600">
+                                    {candidateInitials}
+                                </div>
                             )}
+                            <div>
+                                <p className="text-xs uppercase tracking-[0.18em] text-cyan-700">Candidate Evaluation</p>
+                                <h1 className="mt-2 text-3xl font-semibold">{data?.candidate.candidateName || "Candidate"}</h1>
+                                <p className="mt-1 text-sm text-slate-600">{data?.candidate.candidateEmail} • {data?.candidate.candidatePhone || "-"}</p>
+                                <p className="mt-1 text-sm text-slate-500">Applied: {formatDate(data?.candidate.appliedAt ?? null)} • Status: {data?.candidate.status || "-"}</p>
+                            </div>
                         </div>
-                        <Link
-                            href={`/organization/manage-interviews/${interviewId}/candidates-info`}
-                            className="inline-flex rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-                        >
-                            Back to Candidates
-                        </Link>
-                    </div>
-                </div>
-
-                {errorMessage ? (
-                    <div className="rounded-xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
-                        {errorMessage}
-                    </div>
-                ) : null}
-
-                {successMessage ? (
-                    <div className="rounded-xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
-                        {successMessage}
-                    </div>
-                ) : null}
-
-                <div className="grid gap-4 sm:grid-cols-3">
-                    <div className="rounded-xl border border-white/15 bg-white/5 p-4">
-                        <p className="text-xs uppercase tracking-wider text-slate-300">Assessment</p>
-                        <p className="mt-2 text-sm text-slate-200">{data?.completion.completedAssessment ? "Completed" : "Pending"}</p>
-                        <p className="mt-1 text-xs text-slate-400">Score: {data?.assessment?.score ?? "-"}</p>
-                    </div>
-                    <div className="rounded-xl border border-white/15 bg-white/5 p-4">
-                        <p className="text-xs uppercase tracking-wider text-slate-300">Interview</p>
-                        <p className="mt-2 text-sm text-slate-200">{data?.completion.completedInterview ? "Completed" : "Pending"}</p>
-                        <p className="mt-1 text-xs text-slate-400">Questions: {data?.interviewSession?.totalQuestionsAsked ?? "-"}</p>
-                    </div>
-                    <div className="rounded-xl border border-white/15 bg-white/5 p-4">
-                        <p className="text-xs uppercase tracking-wider text-slate-300">Report Status</p>
-                        <p className="mt-2 text-sm text-slate-200">{data?.report ? "Generated" : "Not Generated"}</p>
-                        <p className="mt-1 text-xs text-slate-400">Generated at: {formatDate(data?.report?.generated_at ?? null)}</p>
-                    </div>
-                </div>
-
-                <div className="rounded-2xl border border-white/15 bg-white/5 p-5 backdrop-blur-xl">
-                    <p className="text-sm font-semibold text-slate-100">Interview Recording</p>
-                    {data?.interviewVideo?.signedUrl ? (
-                        <div className="mt-3 space-y-2">
-                            <video
-                                controls
-                                preload="metadata"
-                                className="w-full rounded-lg border border-white/10 bg-black/40"
-                                src={data.interviewVideo.signedUrl}
-                            />
-                            <p className="text-xs text-slate-400">
-                                Duration: {data.interviewVideo.durationSeconds ?? "-"}s | Format: {data.interviewVideo.mimeType || "-"}
-                            </p>
+                        <div className="flex gap-2">
+                            {data?.candidate.resumeUrl ? <a href={data.candidate.resumeUrl} target="_blank" rel="noreferrer" className="inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800">Resume</a> : null}
+                            <Link href={`/organization/manage-interviews/${interviewId}/candidates-info`} className="inline-flex rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800">Back to Candidates</Link>
                         </div>
-                    ) : (
-                        <p className="mt-2 text-sm text-slate-400">Interview video recording is not available.</p>
-                    )}
-                </div>
+                    </div>
+                </header>
 
-                <div className="rounded-2xl border border-cyan-300/30 bg-cyan-400/10 p-5 backdrop-blur-xl">
+                {errorMessage ? <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{errorMessage}</div> : null}
+                {successMessage ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{successMessage}</div> : null}
+
+                <section className="grid gap-4 sm:grid-cols-4">
+                    <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><p className="text-xs uppercase tracking-wide text-emerald-700">Assessment</p><p className="mt-1 text-sm font-semibold text-emerald-900">{data?.completion.completedAssessment ? "Completed" : "Pending"}</p></article>
+                    <article className="rounded-2xl border border-sky-200 bg-sky-50 p-4"><p className="text-xs uppercase tracking-wide text-sky-700">Interview</p><p className="mt-1 text-sm font-semibold text-sky-900">{data?.completion.completedInterview ? "Completed" : "Pending"}</p></article>
+                    <article className="rounded-2xl border border-violet-200 bg-violet-50 p-4"><p className="text-xs uppercase tracking-wide text-violet-700">AI Report</p><p className="mt-1 text-sm font-semibold text-violet-900">{data?.report ? "Generated" : "Not Generated"}</p></article>
+                    <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><p className="text-xs uppercase tracking-wide text-amber-700">Decision</p><p className="mt-1 text-sm font-semibold text-amber-900">{data?.decision ? data.decision.decision : "Pending"}</p></article>
+                </section>
+
+                <section className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_18px_60px_-30px_rgba(15,23,42,0.25)]">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                            <p className="text-sm font-semibold text-cyan-100">Generate Combined AI Report</p>
-                            <p className="mt-1 text-xs text-cyan-50/90">
-                                Uses assessment responses + interview transcript + recording/proctoring signals.
-                            </p>
+                            <p className="text-sm font-semibold text-slate-900">Generate Combined AI Report</p>
+                            <p className="mt-1 text-xs text-slate-600">Uses assessment responses, transcript and proctoring/video context.</p>
                         </div>
-                        <button
-                            type="button"
-                            onClick={generateReport}
-                            disabled={!data?.completion.canGenerate || isGenerating}
-                            className="inline-flex rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2 text-sm font-semibold text-[#041022] transition hover:brightness-110 disabled:opacity-70"
-                        >
+                        <button type="button" onClick={generateReport} disabled={!data?.completion.canGenerate || isGenerating} className="inline-flex rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70">
                             {isGenerating ? "Generating..." : data?.report ? "Regenerate Report" : "Generate Report"}
                         </button>
                     </div>
-                    {!data?.completion.canGenerate ? (
-                        <p className="mt-3 text-xs text-amber-200">
-                            Report can be generated only after both assessment and interview are completed.
-                        </p>
-                    ) : null}
-                </div>
+                </section>
 
-                {data?.report ? (
-                    <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl">
-                        <div className="flex flex-wrap gap-3">
-                            <span className="rounded-full border border-emerald-300/40 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-200">
-                                Recommendation: {data.report.hire_recommendation || "-"}
-                            </span>
-                            <span className="rounded-full border border-cyan-300/40 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-200">
-                                Score: {data.report.score ?? "-"}
-                            </span>
-                            <span className="rounded-full border border-slate-300/30 bg-slate-400/10 px-3 py-1 text-xs font-semibold text-slate-200">
-                                Engine: {data.report.generated_by || "AI"}
-                            </span>
-                        </div>
-
-                        <div>
-                            <p className="text-xs uppercase tracking-wider text-slate-300">Summary</p>
-                            <p className="mt-2 text-sm text-slate-100">{data.report.transcript_summary || "-"}</p>
-                        </div>
-
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <div className="rounded-lg border border-emerald-300/30 bg-emerald-400/10 p-4">
-                                <p className="text-xs uppercase tracking-wider text-emerald-200">Strengths</p>
-                                <ul className="mt-2 space-y-1 text-sm text-emerald-100">
-                                    {(data.report.strengths ?? []).length > 0 ? (
-                                        (data.report.strengths ?? []).map((item, idx) => <li key={`s-${idx}`}>• {item}</li>)
-                                    ) : (
-                                        <li>• -</li>
-                                    )}
-                                </ul>
-                            </div>
-                            <div className="rounded-lg border border-rose-300/30 bg-rose-400/10 p-4">
-                                <p className="text-xs uppercase tracking-wider text-rose-200">Weaknesses</p>
-                                <ul className="mt-2 space-y-1 text-sm text-rose-100">
-                                    {(data.report.weaknesses ?? []).length > 0 ? (
-                                        (data.report.weaknesses ?? []).map((item, idx) => <li key={`w-${idx}`}>• {item}</li>)
-                                    ) : (
-                                        <li>• -</li>
-                                    )}
-                                </ul>
-                            </div>
-                        </div>
-
-                        <div>
-                            <p className="text-xs uppercase tracking-wider text-slate-300">Detailed Analysis</p>
-                            <pre className="mt-2 whitespace-pre-wrap rounded-lg border border-white/10 bg-black/20 p-4 text-xs text-slate-200">
-                                {data.report.detailed_analysis || "-"}
-                            </pre>
-                        </div>
-
-                        <div className="rounded-xl border border-amber-300/30 bg-amber-400/10 p-4">
-                            <p className="text-xs uppercase tracking-wider text-amber-200">Final Decision</p>
-                            <p className="mt-2 text-sm text-amber-100">
-                                {data.decision ? `Already ${data.decision.decision} on ${formatDate(data.decision.decidedAt)}` : "No decision yet"}
-                            </p>
-                            <div className="mt-3 flex flex-wrap gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => submitDecision("ACCEPT")}
-                                    disabled={isDeciding}
-                                    className="inline-flex rounded-lg bg-gradient-to-r from-emerald-500 to-green-500 px-4 py-2 text-sm font-semibold text-[#041022] transition hover:brightness-110 disabled:opacity-70"
-                                >
-                                    {isDeciding ? "Saving..." : "Accept"}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => submitDecision("REJECT")}
-                                    disabled={isDeciding}
-                                    className="inline-flex rounded-lg bg-gradient-to-r from-rose-500 to-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-70"
-                                >
-                                    {isDeciding ? "Saving..." : "Reject"}
-                                </button>
-                            </div>
-                        </div>
+                <section className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_18px_60px_-30px_rgba(15,23,42,0.25)]">
+                    <div className="flex flex-wrap gap-2">
+                        <button onClick={() => setActiveTab("report")} className={`rounded-full border px-3 py-1 text-xs font-semibold ${activeTab === "report" ? "border-cyan-200 bg-cyan-50 text-cyan-800" : "border-slate-300 bg-white text-slate-700"}`}>AI Report</button>
+                        <button onClick={() => setActiveTab("transcript")} className={`rounded-full border px-3 py-1 text-xs font-semibold ${activeTab === "transcript" ? "border-cyan-200 bg-cyan-50 text-cyan-800" : "border-slate-300 bg-white text-slate-700"}`}>Transcript</button>
+                        <button onClick={() => setActiveTab("assessment")} className={`rounded-full border px-3 py-1 text-xs font-semibold ${activeTab === "assessment" ? "border-cyan-200 bg-cyan-50 text-cyan-800" : "border-slate-300 bg-white text-slate-700"}`}>Assessment</button>
                     </div>
-                ) : null}
 
-                <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl">
-                    <p className="text-sm font-semibold text-slate-100">Interview Transcript</p>
-                    {(data?.transcript ?? []).length === 0 ? (
-                        <p className="mt-2 text-sm text-slate-400">No transcript responses available.</p>
-                    ) : (
-                        <div className="mt-3 space-y-3">
-                            {(data?.transcript ?? []).map((item) => (
-                                <div key={`t-${item.index}`} className="rounded-lg border border-white/10 bg-black/20 p-3">
-                                    <p className="text-xs text-cyan-200">Q{item.index}. {item.questionText}</p>
-                                    <p className="mt-1 text-sm text-slate-100">{item.candidateAnswer}</p>
-                                    <p className="mt-1 text-[11px] text-slate-500">
-                                        Duration: {item.durationSeconds ?? "-"}s | Answered: {formatDate(item.answeredAt)}
-                                    </p>
-                                </div>
-                            ))}
+                    {activeTab === "report" ? (
+                        <div className="mt-4 space-y-4">
+                            {data?.report ? (
+                                <>
+                                    <div className="flex flex-wrap gap-2 text-xs">
+                                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">Recommendation: {data.report.hire_recommendation || "-"}</span>
+                                        <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 font-semibold text-cyan-700">Score: {data.report.score ?? "-"}</span>
+                                        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-700">Engine: {data.report.generated_by || "AI"}</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs uppercase tracking-wider text-slate-500">Summary</p>
+                                        <p className="mt-1 text-sm text-slate-700">{data.report.transcript_summary || "-"}</p>
+                                    </div>
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4"><p className="text-xs uppercase tracking-wider text-emerald-700">Strengths</p><ul className="mt-2 space-y-1 text-sm text-emerald-900">{(data.report.strengths ?? []).length > 0 ? (data.report.strengths ?? []).map((item, idx) => <li key={`s-${idx}`}>- {item}</li>) : <li>-</li>}</ul></div>
+                                        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4"><p className="text-xs uppercase tracking-wider text-rose-700">Weaknesses</p><ul className="mt-2 space-y-1 text-sm text-rose-900">{(data.report.weaknesses ?? []).length > 0 ? (data.report.weaknesses ?? []).map((item, idx) => <li key={`w-${idx}`}>- {item}</li>) : <li>-</li>}</ul></div>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs uppercase tracking-wider text-slate-500">Detailed Analysis</p>
+                                        <pre className="mt-2 whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700">{data.report.detailed_analysis || "-"}</pre>
+                                    </div>
+                                </>
+                            ) : (
+                                <p className="text-sm text-slate-500">No AI report generated yet.</p>
+                            )}
                         </div>
-                    )}
-                </div>
+                    ) : null}
 
-                <div className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-xl">
-                    <p className="text-sm font-semibold text-slate-100">Assessment Details</p>
-                    {(data?.assessmentDetails ?? []).length === 0 ? (
-                        <p className="mt-2 text-sm text-slate-400">No assessment response details available.</p>
-                    ) : (
-                        <div className="mt-3 space-y-3">
-                            {(data?.assessmentDetails ?? []).map((item) => (
-                                <div key={`a-${item.questionId}`} className="rounded-lg border border-white/10 bg-black/20 p-3">
-                                    <p className="text-xs text-violet-200">Q{item.questionOrder}. {item.questionText}</p>
-                                    <p className="mt-1 text-sm text-slate-100">Selected Option: {item.selectedOptionLabel || "Not answered"}</p>
-                                    <p className="mt-1 text-[11px] text-slate-400">
-                                        Status: {item.isCorrect === null ? "Pending" : item.isCorrect ? "Correct" : "Incorrect"}
-                                    </p>
-                                </div>
-                            ))}
+                    {activeTab === "transcript" ? (
+                        <div className="mt-4 space-y-3">
+                            {(data?.transcript ?? []).length === 0 ? (
+                                <p className="text-sm text-slate-500">No transcript responses available.</p>
+                            ) : (
+                                (data?.transcript ?? []).map((item) => (
+                                    <div key={`t-${item.index}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                        <p className="text-xs text-cyan-700">Q{item.index}. {item.questionText}</p>
+                                        <p className="mt-1 text-sm text-slate-800">{item.candidateAnswer}</p>
+                                        <p className="mt-1 text-[11px] text-slate-500">Duration: {item.durationSeconds ?? "-"}s • Answered: {formatDate(item.answeredAt)}</p>
+                                    </div>
+                                ))
+                            )}
                         </div>
+                    ) : null}
+
+                    {activeTab === "assessment" ? (
+                        <div className="mt-4 space-y-3">
+                            {(data?.assessmentDetails ?? []).length === 0 ? (
+                                <p className="text-sm text-slate-500">No assessment response details available.</p>
+                            ) : (
+                                (data?.assessmentDetails ?? []).map((item) => (
+                                    <div key={`a-${item.questionId}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                        <p className="text-xs text-violet-700">Q{item.questionOrder}. {item.questionText}</p>
+                                        <p className="mt-1 text-sm text-slate-800">Selected Option: {item.selectedOptionLabel || "Not answered"}</p>
+                                        <p className="mt-1 text-[11px] text-slate-500">Status: {item.isCorrect === null ? "Pending" : item.isCorrect ? "Correct" : "Incorrect"}</p>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    ) : null}
+                </section>
+
+                <section className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-[0_18px_60px_-30px_rgba(15,23,42,0.2)]">
+                    <p className="text-xs uppercase tracking-wider text-amber-700">Final Decision</p>
+                    <p className="mt-2 text-sm text-amber-900">{data?.decision ? `Already ${data.decision.decision} on ${formatDate(data.decision.decidedAt)}` : "No decision yet"}</p>
+                    <div className="mt-3 flex flex-wrap gap-3">
+                        <button type="button" onClick={() => submitDecision("ACCEPT")} disabled={isDeciding} className="inline-flex rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70">{isDeciding ? "Saving..." : "Accept"}</button>
+                        <button type="button" onClick={() => submitDecision("REJECT")} disabled={isDeciding} className="inline-flex rounded-xl bg-gradient-to-r from-rose-600 to-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70">{isDeciding ? "Saving..." : "Reject"}</button>
+                    </div>
+                </section>
+
+                <section className="rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_18px_60px_-30px_rgba(15,23,42,0.25)]">
+                    <p className="text-sm font-semibold text-slate-900">Interview Recording</p>
+                    {data?.interviewVideo?.signedUrl ? (
+                        <div className="mt-3 space-y-2">
+                            <video controls preload="metadata" className="w-full rounded-lg border border-slate-200 bg-black/10" src={data.interviewVideo.signedUrl} />
+                            <p className="text-xs text-slate-500">Duration: {data.interviewVideo.durationSeconds ?? "-"}s • Format: {data.interviewVideo.mimeType || "-"}</p>
+                        </div>
+                    ) : (
+                        <p className="mt-2 text-sm text-slate-500">Interview video recording is not available.</p>
                     )}
-                </div>
+                </section>
             </div>
         </div>
     );

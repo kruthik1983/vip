@@ -40,56 +40,31 @@ export default function OrganizationForgotPasswordPage() {
     }
 
     return (
-        <div className="relative min-h-screen overflow-hidden bg-[#070b16] px-6 py-10 text-white lg:px-10">
-            <div className="pointer-events-none absolute inset-0">
-                <div className="absolute -left-24 top-[-120px] h-[340px] w-[340px] rounded-full bg-emerald-500/30 blur-3xl" />
-                <div className="absolute right-[-120px] top-[120px] h-[360px] w-[360px] rounded-full bg-cyan-400/20 blur-3xl" />
-            </div>
+        <div className="relative min-h-screen overflow-hidden bg-[#f3f9f7] px-6 py-10 text-slate-900 lg:px-10">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(16,185,129,0.18),transparent_35%),radial-gradient(circle_at_84%_16%,rgba(56,189,248,0.18),transparent_35%),radial-gradient(circle_at_50%_100%,rgba(20,184,166,0.10),transparent_44%)]" />
 
-            <main className="relative mx-auto flex min-h-screen max-w-4xl items-center justify-center">
-                <section className="w-full max-w-md rounded-3xl border border-white/15 bg-white/10 p-6 backdrop-blur-xl sm:p-8">
-                    <p className="text-xs uppercase tracking-[0.18em] text-emerald-200">Organization Recovery</p>
-                    <h1 className="mt-2 text-2xl font-semibold">Forgot your password?</h1>
-                    <p className="mt-2 text-sm text-slate-300">Enter your organization admin email and we will send you a reset link.</p>
+            <main className="relative mx-auto flex min-h-screen max-w-5xl items-center justify-center">
+                <section className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white/92 p-6 shadow-[0_20px_70px_-34px_rgba(15,23,42,0.45)] backdrop-blur sm:p-8">
+                    <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">Organization Recovery</p>
+                    <h1 className="mt-2 text-3xl font-semibold tracking-tight">Reset your organization password</h1>
+                    <p className="mt-2 text-sm text-slate-600">Enter your organization admin email and we will send a secure reset link.</p>
 
                     <form className="mt-6 space-y-4" onSubmit={handleSendResetLink}>
                         <div>
-                            <label htmlFor="org-recovery-email" className="mb-1.5 block text-sm font-medium text-slate-200">
-                                Email Address
-                            </label>
-                            <input
-                                id="org-recovery-email"
-                                type="email"
-                                value={email}
-                                onChange={(event) => setEmail(event.target.value)}
-                                disabled={isSubmitting}
-                                placeholder="orgadmin@company.com"
-                                className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm text-white outline-none ring-emerald-300/50 placeholder:text-slate-400 focus:ring-2"
-                            />
+                            <label htmlFor="org-recovery-email" className="mb-1.5 block text-sm font-medium text-slate-700">Email Address</label>
+                            <input id="org-recovery-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={isSubmitting} placeholder="orgadmin@company.com" className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-emerald-300/50 placeholder:text-slate-400 focus:ring-2" />
                         </div>
 
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-400 px-4 py-3 text-sm font-semibold text-[#041022] transition hover:brightness-110"
-                        >
+                        <button type="submit" disabled={isSubmitting} className="w-full rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110">
                             {isSubmitting ? "Sending..." : "Send reset link"}
                         </button>
 
-                        {errorMessage ? (
-                            <p className="rounded-xl border border-rose-300/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-200">{errorMessage}</p>
-                        ) : null}
-
-                        {successMessage ? (
-                            <p className="rounded-xl border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200">{successMessage}</p>
-                        ) : null}
+                        {errorMessage ? <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{errorMessage}</p> : null}
+                        {successMessage ? <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{successMessage}</p> : null}
                     </form>
 
-                    <p className="mt-6 text-center text-sm text-slate-300">
-                        Back to organization login{" "}
-                        <Link href="/organization/organization_auth" className="font-semibold text-emerald-300 hover:text-emerald-200">
-                            Sign in
-                        </Link>
+                    <p className="mt-6 text-center text-sm text-slate-600">
+                        Back to organization login <Link href="/organization/organization_auth" className="font-semibold text-emerald-700 hover:text-emerald-800">Sign in</Link>
                     </p>
                 </section>
             </main>
