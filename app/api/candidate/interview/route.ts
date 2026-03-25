@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { generateAndStoreInterviewAiReport } from "@/lib/interview-ai-report";
+import { validateAssignedInterviewSlotWindow } from "@/lib/candidate-interview-access";
 
 type InterviewResponseInput = {
     fallbackQuestionId?: number;
     questionText?: string;
     candidateAnswer?: string;
+    voiceRecordingPath?: string;
+    answerDurationSeconds?: number;
 };
 
 function parseToken(request: NextRequest) {
@@ -53,6 +57,11 @@ export async function GET(request: NextRequest) {
 
         if (applicationError || !application) {
             return NextResponse.json({ success: false, error: "Application not found" }, { status: 404 });
+        }
+
+        const slotAccess = await validateAssignedInterviewSlotWindow(application.id);
+        if (!slotAccess.allowed) {
+            return NextResponse.json({ success: false, error: slotAccess.error || "Interview access denied" }, { status: 400 });
         }
 
         const { data: interview, error: interviewError } = await supabaseAdmin
@@ -154,6 +163,11 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: false, error: "Application not found" }, { status: 404 });
         }
 
+        const slotAccess = await validateAssignedInterviewSlotWindow(application.id);
+        if (!slotAccess.allowed) {
+            return NextResponse.json({ success: false, error: slotAccess.error || "Interview access denied" }, { status: 400 });
+        }
+
         if (responses.length === 0) {
             return NextResponse.json({ success: false, error: "At least one answer is required" }, { status: 400 });
         }
@@ -165,8 +179,10 @@ export async function POST(request: NextRequest) {
                 const answer = String(item.candidateAnswer || "").trim();
                 const questionText = String(item.questionText || "").trim();
                 const fallbackQuestionId = item.fallbackQuestionId ? Number(item.fallbackQuestionId) : null;
+                const voiceRecordingPath = String(item.voiceRecordingPath || "").trim();
+                const answerDurationSeconds = Number(item.answerDurationSeconds);
 
-                if (!answer) {
+                if (!answer && !voiceRecordingPath) {
                     return null;
                 }
 
@@ -175,9 +191,12 @@ export async function POST(request: NextRequest) {
                     question_text: questionText || "Interview question",
                     is_fallback_question: fallbackQuestionId !== null,
                     fallback_question_id: fallbackQuestionId,
-                    candidate_answer: answer,
+                    candidate_answer: answer || `[VOICE_RECORDING] ${voiceRecordingPath}`,
                     asked_at: nowIso,
                     answered_at: nowIso,
+                    question_duration_seconds: Number.isFinite(answerDurationSeconds) && answerDurationSeconds > 0
+                        ? Math.floor(answerDurationSeconds)
+                        : null,
                 };
             })
             .filter((row) => row !== null);
@@ -218,6 +237,12 @@ export async function POST(request: NextRequest) {
             .from("applications")
             .update({ status: "COMPLETED" })
             .eq("id", application.id);
+
+        // Best-effort: generate AI report as soon as interview is finalized.
+        // Candidate submission must not fail if AI generation is unavailable.
+        void generateAndStoreInterviewAiReport(application.id).catch((error) => {
+            console.error("AI report generation after interview submit failed:", error);
+        });
 
         return NextResponse.json({
             success: true,

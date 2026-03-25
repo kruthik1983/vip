@@ -291,6 +291,12 @@ export default function CandidatesInfoPage() {
                                             <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${badgeClass(candidate.reportStatus)}`}>
                                                 {candidate.reportStatus || "PENDING"}
                                             </span>
+                                            <Link
+                                                href={`/organization/manage-interviews/${interviewId}/candidate-info/${candidate.applicationId}`}
+                                                className="mt-2 inline-flex rounded border border-cyan-300/30 bg-cyan-400/10 px-2 py-1 text-xs font-semibold text-cyan-200 hover:bg-cyan-400/20"
+                                            >
+                                                View Report
+                                            </Link>
                                         </td>
 
                                         <td className="px-4 py-3 text-slate-300">{formatDateTime(candidate.appliedAt)}</td>

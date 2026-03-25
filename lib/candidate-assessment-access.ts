@@ -1,0 +1,56 @@
+import { supabaseAdmin } from "@/lib/supabase-admin";
+
+function formatInIndia(iso: string) {
+    return new Date(iso).toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+    });
+}
+
+export async function validateAssignedAssessmentSlotWindow(applicationId: number): Promise<{
+    allowed: boolean;
+    error?: string;
+}> {
+    const { data: application, error: appError } = await supabaseAdmin
+        .from("applications")
+        .select("id, assigned_assessment_slot_id")
+        .eq("id", applicationId)
+        .maybeSingle();
+
+    if (appError || !application) {
+        return { allowed: false, error: "Application not found" };
+    }
+
+    const slotId = application.assigned_assessment_slot_id as number | null;
+
+    if (!slotId) {
+        return { allowed: false, error: "Assessment slot is not assigned yet" };
+    }
+
+    const { data: slot, error: slotError } = await supabaseAdmin
+        .from("assessment_slots")
+        .select("id, slot_start_utc, slot_end_utc")
+        .eq("id", slotId)
+        .maybeSingle();
+
+    if (slotError || !slot) {
+        return { allowed: false, error: "Assigned assessment slot not found" };
+    }
+
+    const nowTs = Date.now();
+    const startTs = new Date(slot.slot_start_utc).getTime();
+    const endTs = new Date(slot.slot_end_utc).getTime();
+
+    if (nowTs < startTs || nowTs > endTs) {
+        return {
+            allowed: false,
+            error: `Assessment can only be accessed during assigned time: ${formatInIndia(slot.slot_start_utc)} to ${formatInIndia(slot.slot_end_utc)}`,
+        };
+    }
+
+    return { allowed: true };
+}

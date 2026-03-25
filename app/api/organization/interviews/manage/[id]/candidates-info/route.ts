@@ -48,6 +48,11 @@ type AssessmentQuestionRow = {
     question_order: number;
 };
 
+type AiReportRow = {
+    application_id: number;
+    generated_at: string;
+};
+
 async function validateOrgAdmin(request: NextRequest) {
     const token = request.headers.get("authorization")?.replace("Bearer ", "");
     if (!token) {
@@ -200,6 +205,7 @@ export async function GET(
         const attemptIds = assessmentSessions.map((session) => session.id);
         const responsesByAttempt = new Map<number, AssessmentResponseRow[]>();
         const questionMap = new Map<number, AssessmentQuestionRow>();
+        const reportMap = new Map<number, AiReportRow>();
 
         if (attemptIds.length > 0) {
             const { data: responseRows, error: responseError } = await supabaseAdmin
@@ -242,6 +248,21 @@ export async function GET(
             });
         }
 
+        if (applicationIds.length > 0) {
+            const { data: reportRows } = await supabaseAdmin
+                .from("ai_reports")
+                .select("application_id, generated_at")
+                .eq("report_type", "INTERVIEW")
+                .in("application_id", applicationIds)
+                .order("generated_at", { ascending: false });
+
+            ((reportRows ?? []) as AiReportRow[]).forEach((row) => {
+                if (!reportMap.has(row.application_id)) {
+                    reportMap.set(row.application_id, row);
+                }
+            });
+        }
+
         const candidates = applications.map((app) => {
             const assignedAssessmentSlot = app.assigned_assessment_slot_id
                 ? assessmentSlotMap.get(app.assigned_assessment_slot_id)
@@ -251,10 +272,7 @@ export async function GET(
                 : undefined;
             const assessmentSession = assessmentSessionMap.get(app.id);
             const interviewSession = interviewSessionMap.get(app.id);
-            const reportStatus =
-                assessmentSession?.submitted_at && interviewSession?.ended_at
-                    ? "DECLARED"
-                    : "PENDING";
+            const reportStatus = reportMap.has(app.id) ? "DECLARED" : "PENDING";
             const attemptResponses = assessmentSession
                 ? responsesByAttempt.get(assessmentSession.id) ?? []
                 : [];

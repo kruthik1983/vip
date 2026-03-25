@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { generateAssessmentQuestionsFromOllama } from "@/lib/ollama";
+import { validateAssignedAssessmentSlotWindow } from "@/lib/candidate-assessment-access";
 
 type AssessmentQuestionRow = {
     id: number;
@@ -364,6 +365,11 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ success: false, error: "Application not found" }, { status: 404 });
         }
 
+        const slotAccess = await validateAssignedAssessmentSlotWindow(application.id);
+        if (!slotAccess.allowed) {
+            return NextResponse.json({ success: false, error: slotAccess.error || "Assessment access denied" }, { status: 400 });
+        }
+
         const { data: interview, error: interviewError } = await supabaseAdmin
             .from("interviews")
             .select("id, job_id, title, assessment_duration_minutes")
@@ -515,6 +521,11 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ success: false, error: "Application not found" }, { status: 404 });
         }
 
+        const slotAccess = await validateAssignedAssessmentSlotWindow(application.id);
+        if (!slotAccess.allowed) {
+            return NextResponse.json({ success: false, error: slotAccess.error || "Assessment access denied" }, { status: 400 });
+        }
+
         const { data: interview, error: interviewError } = await supabaseAdmin
             .from("interviews")
             .select("id, job_id, title, assessment_duration_minutes")
@@ -633,6 +644,11 @@ export async function POST(request: NextRequest) {
 
         if (applicationError || !application) {
             return NextResponse.json({ success: false, error: "Application not found" }, { status: 404 });
+        }
+
+        const slotAccess = await validateAssignedAssessmentSlotWindow(application.id);
+        if (!slotAccess.allowed) {
+            return NextResponse.json({ success: false, error: slotAccess.error || "Assessment access denied" }, { status: 400 });
         }
 
         const { data: interview, error: interviewError } = await supabaseAdmin
