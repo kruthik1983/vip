@@ -32,9 +32,9 @@ export async function validateAssignedInterviewSlotWindow(applicationId: number)
     }
 
     const { data: slot, error: slotError } = await supabaseAdmin
-        .from("interview_slots")
-        .select("id, slot_start_utc, slot_end_utc")
-        .eq("id", slotId)
+        .from("interview_sessions")
+        .select("id, session_valid_from, session_valid_until")
+        .eq("id", applicationId)
         .maybeSingle();
 
     if (slotError || !slot) {
@@ -42,15 +42,15 @@ export async function validateAssignedInterviewSlotWindow(applicationId: number)
     }
 
     const nowTs = Date.now();
-    const startTs = new Date(slot.slot_start_utc).getTime();
-    const endTs = new Date(slot.slot_end_utc).getTime();
+    const startTs = new Date(slot.session_valid_from).getTime();
+    const endTs = new Date(slot.session_valid_until).getTime();
 
     const withinAssignedSlot = nowTs >= startTs && nowTs <= endTs;
 
     if (!withinAssignedSlot) {
         return {
             allowed: false,
-            error: `Interview can only be accessed during assigned time: ${formatInIndia(slot.slot_start_utc)} to ${formatInIndia(slot.slot_end_utc)}`,
+            error: `Interview can only be accessed during assigned time: ${formatInIndia(slot.session_valid_from)} to ${formatInIndia(slot.session_valid_until)}`,
         };
     }
 

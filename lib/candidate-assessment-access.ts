@@ -32,9 +32,9 @@ export async function validateAssignedAssessmentSlotWindow(applicationId: number
     }
 
     const { data: slot, error: slotError } = await supabaseAdmin
-        .from("assessment_slots")
-        .select("id, slot_start_utc, slot_end_utc")
-        .eq("id", slotId)
+        .from("assessment_attempts")
+        .select("id, session_valid_from, session_valid_until")
+        .eq("id", applicationId)
         .maybeSingle();
 
     if (slotError || !slot) {
@@ -42,13 +42,13 @@ export async function validateAssignedAssessmentSlotWindow(applicationId: number
     }
 
     const nowTs = Date.now();
-    const startTs = new Date(slot.slot_start_utc).getTime();
-    const endTs = new Date(slot.slot_end_utc).getTime();
+    const startTs = new Date(slot.session_valid_from).getTime();
+    const endTs = new Date(slot.session_valid_until).getTime();
 
     if (nowTs < startTs || nowTs > endTs) {
         return {
             allowed: false,
-            error: `Assessment can only be accessed during assigned time: ${formatInIndia(slot.slot_start_utc)} to ${formatInIndia(slot.slot_end_utc)}`,
+            error: `Assessment can only be accessed during assigned time: ${formatInIndia(slot.session_valid_from)} to ${formatInIndia(slot.session_valid_until)}`,
         };
     }
 
