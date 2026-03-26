@@ -34,8 +34,10 @@ export async function validateAssignedInterviewSlotWindow(applicationId: number)
     const { data: slot, error: slotError } = await supabaseAdmin
         .from("interview_sessions")
         .select("id, session_valid_from, session_valid_until")
-        .eq("id", applicationId)
+        .eq("application_id", applicationId)
         .maybeSingle();
+
+    //console.log("validateAssignedInterviewSlotWindow", { applicationId, slot, slotError });
 
     if (slotError || !slot) {
         return { allowed: false, error: "Assigned interview slot not found" };

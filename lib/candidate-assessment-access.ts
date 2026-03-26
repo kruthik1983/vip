@@ -34,8 +34,10 @@ export async function validateAssignedAssessmentSlotWindow(applicationId: number
     const { data: slot, error: slotError } = await supabaseAdmin
         .from("assessment_attempts")
         .select("id, session_valid_from, session_valid_until")
-        .eq("id", applicationId)
+        .eq("application_id", applicationId)
         .maybeSingle();
+
+    //console.log("validateAssignedAssessmentSlotWindow", { applicationId, slot, slotError });
 
     if (slotError || !slot) {
         return { allowed: false, error: "Assigned assessment slot not found" };
