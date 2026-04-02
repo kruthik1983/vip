@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type QuestionOption = {
@@ -155,7 +155,7 @@ function CandidateAssessmentContent() {
         setMarkedForReview((prev) => prev.filter((id) => validIds.has(id)));
     }, [data]);
 
-    async function saveDraft(trigger: "auto" | "next") {
+    const saveDraft = useCallback(async (trigger: "auto" | "next") => {
         if (!token || !data || !isDraftReady || data.submittedAt || !hasUnsavedChanges) {
             return true;
         }
@@ -208,7 +208,7 @@ function CandidateAssessmentContent() {
                 setIsSavingOnNext(false);
             }
         }
-    }
+    }, [answers, data, hasUnsavedChanges, isDraftReady, token]);
 
     useEffect(() => {
         if (!token || !data || !isDraftReady || data.submittedAt) {
@@ -220,7 +220,7 @@ function CandidateAssessmentContent() {
         }, 120000);
 
         return () => clearInterval(interval);
-    }, [answers, data, hasUnsavedChanges, isDraftReady, token]);
+    }, [answers, data, hasUnsavedChanges, isDraftReady, saveDraft, token]);
 
     function formatSavedTime(value: string) {
         return new Date(value).toLocaleTimeString("en-IN", {
@@ -327,7 +327,7 @@ function CandidateAssessmentContent() {
         setIsReviewPageOpen(false);
     }
 
-    async function submitAssessment(trigger: "manual" | "auto-timeout" = "manual") {
+    const submitAssessment = useCallback(async (trigger: "manual" | "auto-timeout" = "manual") => {
         if (!token || !data) {
             return;
         }
@@ -386,7 +386,7 @@ function CandidateAssessmentContent() {
         } finally {
             setIsSubmitting(false);
         }
-    }
+    }, [answers, data, saveDraft, token]);
 
     useEffect(() => {
         if (!data || data.submittedAt || !isExpired || isSubmitting || hasAutoSubmittedOnExpiry) {
@@ -397,7 +397,7 @@ function CandidateAssessmentContent() {
         setErrorMessage(null);
         setSuccessMessage("Time is over. Submitting your assessment automatically...");
         void submitAssessment("auto-timeout");
-    }, [data, hasAutoSubmittedOnExpiry, isExpired, isSubmitting]);
+    }, [data, hasAutoSubmittedOnExpiry, isExpired, isSubmitting, submitAssessment]);
 
     if (isLoading) {
         return (

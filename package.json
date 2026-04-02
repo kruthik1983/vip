@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.3",
+    "@vapi-ai/web": "^2.5.2",
     "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",
     "mammoth": "^1.12.0",

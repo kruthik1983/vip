@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { getCurrentOrganizationAdmin } from "@/lib/organization-auth";
@@ -120,7 +120,7 @@ export default function CandidatesInfoPage() {
         setSortBy("RECENT");
     }
 
-    async function fetchCandidates() {
+    const fetchCandidates = useCallback(async () => {
         setIsLoading(true);
         setErrorMessage(null);
 
@@ -159,27 +159,17 @@ export default function CandidatesInfoPage() {
 
         setData(result.data as CandidatesPayload);
         setIsLoading(false);
-    }
+    }, [interviewId, router]);
 
     useEffect(() => {
-        let mounted = true;
-
-        async function loadCandidates() {
-            const currentAdmin = await getCurrentOrganizationAdmin();
-            if (!mounted) return;
-            if (!currentAdmin) {
-                router.replace("/organization/organization_auth");
-                return;
-            }
-            await fetchCandidates();
-        }
-
-        void loadCandidates();
+        const timer = window.setTimeout(() => {
+            void fetchCandidates();
+        }, 0);
 
         return () => {
-            mounted = false;
+            window.clearTimeout(timer);
         };
-    }, [interviewId, router]);
+    }, [fetchCandidates]);
 
     const statusOptions = useMemo(() => {
         const unique = Array.from(new Set((data?.candidates ?? []).map((c) => c.applicationStatus))).filter(Boolean);

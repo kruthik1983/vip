@@ -3,14 +3,6 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { generateAssessmentQuestionsFromOllama } from "@/lib/ollama";
 import { validateAssignedAssessmentSlotWindow } from "@/lib/candidate-assessment-access";
 
-type AssessmentQuestionRow = {
-    id: number;
-    question_text: string;
-    question_order: number;
-    options: Array<{ label?: string; text?: string }> | null;
-    correct_option_label: string;
-};
-
 type AssessmentResponseRow = {
     question_id: number;
     selected_option_label: string | null;

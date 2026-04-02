@@ -1,7 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getCurrentOrganizationAdmin } from "@/lib/organization-auth";
 import { supabase } from "@/lib/supabase";
@@ -122,7 +123,7 @@ export default function CandidateAiReportPage() {
         return `${parts[0].slice(0, 1)}${parts[1].slice(0, 1)}`.toUpperCase();
     }, [data?.candidate.candidateName]);
 
-    async function fetchData() {
+    const fetchData = useCallback(async () => {
         if (!Number.isInteger(interviewId) || !Number.isInteger(candidateId) || interviewId <= 0 || candidateId <= 0) {
             setErrorMessage("Invalid interview or candidate id");
             setIsLoading(false);
@@ -152,7 +153,7 @@ export default function CandidateAiReportPage() {
 
         setData(result.data as CandidateReportData);
         setIsLoading(false);
-    }
+    }, [candidateId, interviewId]);
 
     useEffect(() => {
         let mounted = true;
@@ -177,7 +178,7 @@ export default function CandidateAiReportPage() {
         return () => {
             mounted = false;
         };
-    }, [interviewId, candidateId, router]);
+    }, [fetchData, router]);
 
     async function generateReport() {
         setErrorMessage(null);
@@ -276,9 +277,11 @@ export default function CandidateAiReportPage() {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="flex items-start gap-4">
                             {data?.candidate.photoUrl ? (
-                                <img
+                                <Image
                                     src={data.candidate.photoUrl}
                                     alt={`${data.candidate.candidateName} photo`}
+                                    width={80}
+                                    height={80}
                                     className="h-20 w-20 rounded-xl border border-slate-200 object-cover"
                                 />
                             ) : (

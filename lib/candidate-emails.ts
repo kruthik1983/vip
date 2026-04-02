@@ -1,31 +1,30 @@
 import nodemailer from "nodemailer";
 
 export interface EmailSendResult {
-    sent: boolean;
-    info?: string;
-    reason?: string;
+  sent: boolean;
+  info?: string;
+  reason?: string;
 }
 
 function getTransporter() {
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpPort = process.env.SMTP_PORT;
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    const smtpFrom = process.env.SMTP_FROM ?? "noreply@vip-platform.com";
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = process.env.SMTP_PORT;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
 
-    if (!smtpHost || !smtpPort || !smtpUser || !smtpPass) {
-        return null;
-    }
+  if (!smtpHost || !smtpPort || !smtpUser || !smtpPass) {
+    return null;
+  }
 
-    return nodemailer.createTransport({
-        host: smtpHost,
-        port: Number(smtpPort),
-        secure: Number(smtpPort) === 465,
-        auth: {
-            user: smtpUser,
-            pass: smtpPass,
-        },
-    });
+  return nodemailer.createTransport({
+    host: smtpHost,
+    port: Number(smtpPort),
+    secure: Number(smtpPort) === 465,
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+  });
 }
 
 const smtpFrom = process.env.SMTP_FROM ?? "noreply@vip-platform.com";
@@ -34,31 +33,31 @@ const smtpFrom = process.env.SMTP_FROM ?? "noreply@vip-platform.com";
  * Send assessment credentials email with one-time login token
  */
 export async function sendAssessmentCredentialsEmail(params: {
-    to: string;
-    candidateName: string;
-    assessmentStartTime: string;
-    assessmentToken: string;
-    interviewTitle: string;
+  to: string;
+  candidateName: string;
+  assessmentStartTime: string;
+  assessmentToken: string;
+  interviewTitle: string;
 }): Promise<EmailSendResult> {
-    const transporter = getTransporter();
+  const transporter = getTransporter();
 
-    if (!transporter) {
-        console.log(
-            `[EMAIL-MOCK] Assessment credentials email to ${params.to} for ${params.candidateName}. Token: ${params.assessmentToken.substring(0, 8)}...`
-        );
-        return {
-            sent: false,
-            reason: "SMTP is not configured. Email logged in server console.",
-        };
-    }
+  if (!transporter) {
+    console.log(
+      `[EMAIL-MOCK] Assessment credentials email to ${params.to} for ${params.candidateName}. Token: ${params.assessmentToken.substring(0, 8)}...`
+    );
+    return {
+      sent: false,
+      reason: "SMTP is not configured. Email logged in server console.",
+    };
+  }
 
-    const assessmentLink = `${process.env.NEXT_PUBLIC_APP_URL || "https://vip-platform.com"}/candidate/assessment?token=${params.assessmentToken}`;
+  const assessmentLink = `${process.env.NEXT_PUBLIC_APP_URL || "https://vip-platform.com"}/candidate/assessment?token=${params.assessmentToken}`;
 
-    const mail = await transporter.sendMail({
-        from: smtpFrom,
-        to: params.to,
-        subject: `Your Assessment Access - ${params.interviewTitle}`,
-        html: `
+  const mail = await transporter.sendMail({
+    from: smtpFrom,
+    to: params.to,
+    subject: `Your Assessment Access - ${params.interviewTitle}`,
+    html: `
       <h2>Assessment Access Granted</h2>
       <p>Hello ${params.candidateName},</p>
       <p>Congratulations! You have been selected for the next stage of our interview process.</p>
@@ -89,43 +88,43 @@ export async function sendAssessmentCredentialsEmail(params: {
       <p>If you have any technical issues, please contact our support team.</p>
       <p>Regards,<br/>VIP Interview Platform</p>
     `,
-    });
+  });
 
-    return {
-        sent: true,
-        info: mail.messageId,
-    };
+  return {
+    sent: true,
+    info: mail.messageId,
+  };
 }
 
 /**
  * Send interview credentials email with one-time login token
  */
 export async function sendInterviewCredentialsEmail(params: {
-    to: string;
-    candidateName: string;
-    interviewStartTime: string;
-    interviewToken: string;
-    interviewTitle: string;
+  to: string;
+  candidateName: string;
+  interviewStartTime: string;
+  interviewToken: string;
+  interviewTitle: string;
 }): Promise<EmailSendResult> {
-    const transporter = getTransporter();
+  const transporter = getTransporter();
 
-    if (!transporter) {
-        console.log(
-            `[EMAIL-MOCK] Interview credentials email to ${params.to} for ${params.candidateName}. Token: ${params.interviewToken.substring(0, 8)}...`
-        );
-        return {
-            sent: false,
-            reason: "SMTP is not configured. Email logged in server console.",
-        };
-    }
+  if (!transporter) {
+    console.log(
+      `[EMAIL-MOCK] Interview credentials email to ${params.to} for ${params.candidateName}. Token: ${params.interviewToken.substring(0, 8)}...`
+    );
+    return {
+      sent: false,
+      reason: "SMTP is not configured. Email logged in server console.",
+    };
+  }
 
-    const interviewLink = `${process.env.NEXT_PUBLIC_APP_URL || "https://vip-platform.com"}/candidate/interview?token=${params.interviewToken}`;
+  const interviewLink = `${process.env.NEXT_PUBLIC_APP_URL || "https://vip-platform.com"}/candidate/interview?token=${params.interviewToken}`;
 
-    const mail = await transporter.sendMail({
-        from: smtpFrom,
-        to: params.to,
-        subject: `Your Interview Access - ${params.interviewTitle}`,
-        html: `
+  const mail = await transporter.sendMail({
+    from: smtpFrom,
+    to: params.to,
+    subject: `Your Interview Access - ${params.interviewTitle}`,
+    html: `
       <h2>Interview Access Granted</h2>
       <p>Hello ${params.candidateName},</p>
       <p>Great news! You have advanced to the interview stage of our hiring process.</p>
@@ -164,41 +163,41 @@ export async function sendInterviewCredentialsEmail(params: {
       <p>If you need to reschedule or have technical issues, please contact us as soon as possible.</p>
       <p>Regards,<br/>VIP Interview Platform</p>
     `,
-    });
+  });
 
-    return {
-        sent: true,
-        info: mail.messageId,
-    };
+  return {
+    sent: true,
+    info: mail.messageId,
+  };
 }
 
 /**
  * Send slot assignment confirmation email
  */
 export async function sendSlotAssignmentEmail(params: {
-    to: string;
-    candidateName: string;
-    assessmentStartTime: string;
-    interviewStartTime: string;
-    interviewTitle: string;
+  to: string;
+  candidateName: string;
+  assessmentStartTime: string;
+  interviewStartTime: string;
+  interviewTitle: string;
 }): Promise<EmailSendResult> {
-    const transporter = getTransporter();
+  const transporter = getTransporter();
 
-    if (!transporter) {
-        console.log(
-            `[EMAIL-MOCK] Slot assignment email to ${params.to} for ${params.candidateName}`
-        );
-        return {
-            sent: false,
-            reason: "SMTP is not configured. Email logged in server console.",
-        };
-    }
+  if (!transporter) {
+    console.log(
+      `[EMAIL-MOCK] Slot assignment email to ${params.to} for ${params.candidateName}`
+    );
+    return {
+      sent: false,
+      reason: "SMTP is not configured. Email logged in server console.",
+    };
+  }
 
-    const mail = await transporter.sendMail({
-        from: smtpFrom,
-        to: params.to,
-        subject: `Your Interview Slots Have Been Assigned - ${params.interviewTitle}`,
-        html: `
+  const mail = await transporter.sendMail({
+    from: smtpFrom,
+    to: params.to,
+    subject: `Your Interview Slots Have Been Assigned - ${params.interviewTitle}`,
+    html: `
       <h2>Slots Assigned</h2>
       <p>Hello ${params.candidateName},</p>
       <p>Thank you for applying! We're pleased to let you know that your interview slots have been assigned.</p>
@@ -231,43 +230,43 @@ export async function sendSlotAssignmentEmail(params: {
       <p>Good luck!</p>
       <p>Regards,<br/>VIP Interview Platform</p>
     `,
-    });
+  });
 
-    return {
-        sent: true,
-        info: mail.messageId,
-    };
+  return {
+    sent: true,
+    info: mail.messageId,
+  };
 }
 
 /**
  * Send 24-hour assessment reminder
  */
 export async function sendAssessmentReminderEmail(params: {
-    to: string;
-    candidateName: string;
-    assessmentStartTime: string;
-    assessmentToken: string;
-    interviewTitle: string;
+  to: string;
+  candidateName: string;
+  assessmentStartTime: string;
+  assessmentToken: string;
+  interviewTitle: string;
 }): Promise<EmailSendResult> {
-    const transporter = getTransporter();
+  const transporter = getTransporter();
 
-    if (!transporter) {
-        console.log(
-            `[EMAIL-MOCK] Assessment reminder email to ${params.to} for ${params.candidateName}`
-        );
-        return {
-            sent: false,
-            reason: "SMTP is not configured. Email logged in server console.",
-        };
-    }
+  if (!transporter) {
+    console.log(
+      `[EMAIL-MOCK] Assessment reminder email to ${params.to} for ${params.candidateName}`
+    );
+    return {
+      sent: false,
+      reason: "SMTP is not configured. Email logged in server console.",
+    };
+  }
 
-    const assessmentLink = `${process.env.NEXT_PUBLIC_APP_URL || "https://vip-platform.com"}/candidate/assessment?token=${params.assessmentToken}`;
+  const assessmentLink = `${process.env.NEXT_PUBLIC_APP_URL || "https://vip-platform.com"}/candidate/assessment?token=${params.assessmentToken}`;
 
-    const mail = await transporter.sendMail({
-        from: smtpFrom,
-        to: params.to,
-        subject: `Reminder: Your Assessment is Tomorrow - ${params.interviewTitle}`,
-        html: `
+  const mail = await transporter.sendMail({
+    from: smtpFrom,
+    to: params.to,
+    subject: `Reminder: Your Assessment is Tomorrow - ${params.interviewTitle}`,
+    html: `
       <h2>Assessment Reminder</h2>
       <p>Hello ${params.candidateName},</p>
       <p>This is a friendly reminder that your assessment is happening tomorrow!</p>
@@ -296,10 +295,10 @@ export async function sendAssessmentReminderEmail(params: {
       <p>If you're having any issues or need to reschedule, please reach out immediately.</p>
       <p>Good luck!<br/>VIP Interview Platform</p>
     `,
-    });
+  });
 
-    return {
-        sent: true,
-        info: mail.messageId,
-    };
+  return {
+    sent: true,
+    info: mail.messageId,
+  };
 }

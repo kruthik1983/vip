@@ -43,6 +43,23 @@ function formatSupabaseError(prefix: string, error: { code?: string; message?: s
     return segments.join(" ");
 }
 
+function isStaleRefreshTokenError(error: { message?: string; code?: string } | null | undefined) {
+    const message = String(error?.message || "").toLowerCase();
+    return message.includes("refresh token not found") || message.includes("invalid refresh token");
+}
+
+async function clearLocalSession() {
+    try {
+        await supabase.auth.signOut({ scope: "local" });
+    } catch {
+        try {
+            await supabase.auth.signOut();
+        } catch {
+            // Ignore cleanup failures; callers will treat the session as absent.
+        }
+    }
+}
+
 export async function signInOrganizationAdmin(
     email: string,
     password: string,
@@ -216,28 +233,40 @@ export async function registerOrganizationAdmin(
 }
 
 export async function getCurrentOrganizationAdmin(): Promise<TableRow<"users"> | null> {
-    const { data: sessionData, error: sessionError } = await supabase.auth.getUser();
+    try {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getUser();
 
-    if (sessionError || !sessionData.user) {
+        if (sessionError || !sessionData.user) {
+            if (isStaleRefreshTokenError(sessionError)) {
+                void clearLocalSession();
+            }
+
+            return null;
+        }
+
+        const { data: userProfile, error: userError } = await fromTable("users")
+            .select("*")
+            .eq("auth_id", sessionData.user.id)
+            .maybeSingle();
+
+        if (userError || !userProfile) {
+            return null;
+        }
+
+        const organizationAdmin = userProfile as TableRow<"users">;
+
+        if (organizationAdmin.role !== "ORG_ADMIN" || organizationAdmin.is_active === false) {
+            return null;
+        }
+
+        return organizationAdmin;
+    } catch (error) {
+        if (isStaleRefreshTokenError(error as { message?: string; code?: string } | null)) {
+            void clearLocalSession();
+        }
+
         return null;
     }
-
-    const { data: userProfile, error: userError } = await fromTable("users")
-        .select("*")
-        .eq("auth_id", sessionData.user.id)
-        .maybeSingle();
-
-    if (userError || !userProfile) {
-        return null;
-    }
-
-    const organizationAdmin = userProfile as TableRow<"users">;
-
-    if (organizationAdmin.role !== "ORG_ADMIN" || organizationAdmin.is_active === false) {
-        return null;
-    }
-
-    return organizationAdmin;
 }
 
 export async function signOutOrganizationAdmin(): Promise<void> {

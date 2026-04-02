@@ -1,6 +1,5 @@
-const nodemailer = require("nodemailer");
-
 async function main() {
+    const { default: nodemailer } = await import("nodemailer");
     const to = process.argv[2] || "kruthik934@gmail.com";
 
     const smtpHost = process.env.SMTP_HOST;

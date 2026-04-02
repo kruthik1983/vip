@@ -121,7 +121,6 @@ export async function POST(request: Request) {
         );
 
         let emailResult;
-        let slotDetails;
 
         // Get application and slot details
         if (payload.applicationId) {
@@ -163,8 +162,6 @@ export async function POST(request: Request) {
                     .eq("id", app.assigned_assessment_slot_id)
                     .maybeSingle();
 
-                slotDetails = { assessmentSlot: slot };
-
                 const assessmentToken = await ensureAssessmentAttemptToken({
                     applicationId: payload.applicationId,
                     assessmentSlotStartUtc: slot?.slot_start_utc,
@@ -186,8 +183,6 @@ export async function POST(request: Request) {
                     .select("slot_start_utc, slot_end_utc")
                     .eq("id", app.assigned_interview_slot_id)
                     .maybeSingle();
-
-                slotDetails = { interviewSlot: slot };
 
                 // Get interview token from interview_sessions
                 const { data: session } = await supabaseAdmin
