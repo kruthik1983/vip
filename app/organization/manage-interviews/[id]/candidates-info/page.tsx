@@ -13,13 +13,17 @@ type CandidateRow = {
     candidatePhone: string | null;
     applicationStatus: string;
     appliedAt: string;
+    assignedAssessmentSlotId: number | null;
+    assignedInterviewSlotId: number | null;
     assessmentSlot: string;
     interviewSlot: string;
+    assessmentSessionId: number | null;
     assessmentCredentialStatus: "GENERATED" | "PENDING";
     interviewCredentialStatus: "GENERATED" | "PENDING";
     assessmentToken: string | null;
     assessmentValidFrom: string | null;
     assessmentValidUntil: string | null;
+    interviewSessionId: number | null;
     interviewToken: string | null;
     interviewValidFrom: string | null;
     interviewValidUntil: string | null;
@@ -38,14 +42,40 @@ type CandidateRow = {
     }>;
 };
 
+type SlotOption = {
+    id: number;
+    slotStartUtc: string;
+    slotEndUtc: string;
+    maxCandidates: number;
+    assignedCandidates: number;
+    seatsLeft: number;
+};
+
 type CandidatesPayload = {
     interviewId: number;
     interviewTitle: string;
     totalCandidates: number;
+    assessmentSlots: SlotOption[];
+    interviewSlots: SlotOption[];
     candidates: CandidateRow[];
 };
 
 type SortBy = "RECENT" | "NAME_ASC" | "NAME_DESC";
+
+type EditCandidateForm = {
+    assessmentSlotId: string;
+    interviewSlotId: string;
+    assessmentSessionToken: string;
+    interviewSessionToken: string;
+};
+
+type AddCandidateForm = {
+    candidateName: string;
+    candidateEmail: string;
+    candidatePhone: string;
+    assessmentSlotId: string;
+    interviewSlotId: string;
+};
 
 function formatDateTime(value: string | null) {
     if (!value) return "-";
@@ -81,6 +111,13 @@ function csvEscape(value: string) {
     return value;
 }
 
+function formatSlotOption(slot: SlotOption) {
+    const start = formatDateTime(slot.slotStartUtc);
+    const end = formatDateTime(slot.slotEndUtc);
+
+    return `${start} - ${end} (${slot.assignedCandidates}/${slot.maxCandidates})`;
+}
+
 export default function CandidatesInfoPage() {
     const params = useParams<{ id: string }>();
     const router = useRouter();
@@ -97,6 +134,21 @@ export default function CandidatesInfoPage() {
     const [reportFilter, setReportFilter] = useState<"ALL" | "DECLARED" | "PENDING">("ALL");
     const [credentialFilter, setCredentialFilter] = useState<"ALL" | "NEEDS_ATTENTION">("ALL");
     const [sortBy, setSortBy] = useState<SortBy>("RECENT");
+    const [editingCandidate, setEditingCandidate] = useState<CandidateRow | null>(null);
+    const [editForm, setEditForm] = useState<EditCandidateForm | null>(null);
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
+    const [editError, setEditError] = useState<string | null>(null);
+    const [isResettingCandidateId, setIsResettingCandidateId] = useState<number | null>(null);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isCreatingCandidate, setIsCreatingCandidate] = useState(false);
+    const [addCandidateError, setAddCandidateError] = useState<string | null>(null);
+    const [addCandidateForm, setAddCandidateForm] = useState<AddCandidateForm>({
+        candidateName: "",
+        candidateEmail: "",
+        candidatePhone: "",
+        assessmentSlotId: "",
+        interviewSlotId: "",
+    });
 
     function toggleQuestions(applicationId: number) {
         setExpandedApplicationIds((prev) =>
@@ -118,6 +170,198 @@ export default function CandidatesInfoPage() {
         setReportFilter("ALL");
         setCredentialFilter("ALL");
         setSortBy("RECENT");
+    }
+
+    function openEditModal(candidate: CandidateRow) {
+        setEditingCandidate(candidate);
+        setEditError(null);
+        setEditForm({
+            assessmentSlotId: candidate.assignedAssessmentSlotId ? String(candidate.assignedAssessmentSlotId) : "",
+            interviewSlotId: candidate.assignedInterviewSlotId ? String(candidate.assignedInterviewSlotId) : "",
+            assessmentSessionToken: candidate.assessmentToken ?? "",
+            interviewSessionToken: candidate.interviewToken ?? "",
+        });
+    }
+
+    function closeEditModal() {
+        setEditingCandidate(null);
+        setEditForm(null);
+        setEditError(null);
+    }
+
+    function openAddCandidateModal() {
+        setAddCandidateError(null);
+        setAddCandidateForm({
+            candidateName: "",
+            candidateEmail: "",
+            candidatePhone: "",
+            assessmentSlotId: "",
+            interviewSlotId: "",
+        });
+        setIsAddModalOpen(true);
+    }
+
+    function closeAddCandidateModal() {
+        setIsAddModalOpen(false);
+        setAddCandidateError(null);
+    }
+
+    async function createCandidate() {
+        if (!addCandidateForm.candidateName.trim()) {
+            setAddCandidateError("Candidate name is required");
+            return;
+        }
+
+        if (!addCandidateForm.candidateEmail.trim()) {
+            setAddCandidateError("Candidate email is required");
+            return;
+        }
+
+        if (!addCandidateForm.assessmentSlotId || !addCandidateForm.interviewSlotId) {
+            setAddCandidateError("Please select assessment and interview slots");
+            return;
+        }
+
+        setIsCreatingCandidate(true);
+        setAddCandidateError(null);
+        setErrorMessage(null);
+
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData.session?.access_token;
+
+            if (!token) {
+                setAddCandidateError("No active session. Please sign in again.");
+                return;
+            }
+
+            const response = await fetch(`/api/organization/interviews/manage/${interviewId}/candidates-info/add-candidate`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    candidateName: addCandidateForm.candidateName.trim(),
+                    candidateEmail: addCandidateForm.candidateEmail.trim(),
+                    candidatePhone: addCandidateForm.candidatePhone.trim() || null,
+                    assessmentSlotId: Number(addCandidateForm.assessmentSlotId),
+                    interviewSlotId: Number(addCandidateForm.interviewSlotId),
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                setAddCandidateError(result.error ?? "Failed to add candidate");
+                return;
+            }
+
+            closeAddCandidateModal();
+            await fetchCandidates();
+        } catch {
+            setAddCandidateError("Failed to add candidate");
+        } finally {
+            setIsCreatingCandidate(false);
+        }
+    }
+
+    async function saveCandidateEdit() {
+        if (!editingCandidate || !editForm) return;
+
+        if (!editForm.assessmentSlotId || !editForm.interviewSlotId) {
+            setEditError("Select both assessment and interview slots for this interview.");
+            return;
+        }
+
+        setIsSavingEdit(true);
+        setEditError(null);
+        setErrorMessage(null);
+
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData.session?.access_token;
+
+            if (!token) {
+                setErrorMessage("No active session. Please sign in again.");
+                return;
+            }
+
+            const response = await fetch(
+                `/api/organization/interviews/manage/${interviewId}/candidates-info/${editingCandidate.applicationId}/assign-slots`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        assessmentSlotId: Number(editForm.assessmentSlotId),
+                        interviewSlotId: Number(editForm.interviewSlotId),
+                        assessmentSessionToken: editForm.assessmentSessionToken,
+                        interviewSessionToken: editForm.interviewSessionToken,
+                    }),
+                },
+            );
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                setEditError(result.error ?? "Failed to update candidate assignment");
+                return;
+            }
+
+            closeEditModal();
+            await fetchCandidates();
+        } catch {
+            setEditError("Failed to update candidate assignment");
+        } finally {
+            setIsSavingEdit(false);
+        }
+    }
+
+    async function resetCandidateProgress(candidate: CandidateRow) {
+        const shouldReset = window.confirm(
+            `Reset progress for ${candidate.candidateName}? This will clear assessment/interview progress and generated report data for this candidate.`,
+        );
+
+        if (!shouldReset) return;
+
+        setIsResettingCandidateId(candidate.applicationId);
+        setErrorMessage(null);
+
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData.session?.access_token;
+
+            if (!token) {
+                setErrorMessage("No active session. Please sign in again.");
+                return;
+            }
+
+            const response = await fetch(
+                `/api/organization/interviews/manage/${interviewId}/candidates-info/${candidate.applicationId}/reset-progress`,
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                },
+            );
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                setErrorMessage(result.error ?? "Failed to reset candidate progress");
+                return;
+            }
+
+            await fetchCandidates();
+        } catch {
+            setErrorMessage("Failed to reset candidate progress");
+        } finally {
+            setIsResettingCandidateId(null);
+        }
     }
 
     const fetchCandidates = useCallback(async () => {
@@ -306,6 +550,13 @@ export default function CandidatesInfoPage() {
                         <div className="flex flex-wrap gap-2">
                             <button
                                 type="button"
+                                onClick={openAddCandidateModal}
+                                className="inline-flex rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-800"
+                            >
+                                Add Candidate
+                            </button>
+                            <button
+                                type="button"
                                 onClick={exportFilteredCsv}
                                 className="inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800"
                             >
@@ -462,6 +713,21 @@ export default function CandidatesInfoPage() {
                                             >
                                                 Open Report
                                             </Link>
+                                            <button
+                                                type="button"
+                                                onClick={() => openEditModal(candidate)}
+                                                className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700"
+                                            >
+                                                Edit Assignment
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => void resetCandidateProgress(candidate)}
+                                                disabled={isResettingCandidateId === candidate.applicationId}
+                                                className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 disabled:opacity-70"
+                                            >
+                                                {isResettingCandidateId === candidate.applicationId ? "Resetting..." : "Reset Candidate"}
+                                            </button>
                                         </div>
                                     </div>
 
@@ -545,6 +811,220 @@ export default function CandidatesInfoPage() {
                     )}
                 </div>
             </div>
+
+            {editingCandidate && editForm ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/55 p-4">
+                    <div className="w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-xs uppercase tracking-[0.16em] text-indigo-700">Edit Candidate Assignment</p>
+                                <h2 className="mt-1 text-xl font-semibold text-slate-900">{editingCandidate.candidateName}</h2>
+                                <p className="text-sm text-slate-600">Application ID: {editingCandidate.applicationId}</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closeEditModal}
+                                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        <div className="mt-5 grid gap-4 md:grid-cols-2">
+                            <div>
+                                <label className="mb-1 block text-xs font-semibold text-slate-700">Assessment Slot</label>
+                                <select
+                                    value={editForm.assessmentSlotId}
+                                    onChange={(e) => setEditForm((prev) => (prev ? { ...prev, assessmentSlotId: e.target.value } : prev))}
+                                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                                    title="Select assessment slot for this interview"
+                                >
+                                    <option value="">Select assessment slot</option>
+                                    {(data?.assessmentSlots ?? []).map((slot) => (
+                                        <option key={slot.id} value={slot.id}>
+                                            {formatSlotOption(slot)}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="mt-1 text-[11px] text-slate-500">Only slots generated for this interview are shown.</p>
+                            </div>
+
+                            <div>
+                                <label className="mb-1 block text-xs font-semibold text-slate-700">Interview Slot</label>
+                                <select
+                                    value={editForm.interviewSlotId}
+                                    onChange={(e) => setEditForm((prev) => (prev ? { ...prev, interviewSlotId: e.target.value } : prev))}
+                                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                                    title="Select interview slot for this interview"
+                                >
+                                    <option value="">Select interview slot</option>
+                                    {(data?.interviewSlots ?? []).map((slot) => (
+                                        <option key={slot.id} value={slot.id}>
+                                            {formatSlotOption(slot)}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="mt-1 text-[11px] text-slate-500">Only slots generated for this interview are shown.</p>
+                            </div>
+
+                            <div>
+                                <label className="mb-1 block text-xs font-semibold text-slate-700">Assessment Session ID (Token)</label>
+                                <input
+                                    type="text"
+                                    value={editForm.assessmentSessionToken}
+                                    onChange={(e) => setEditForm((prev) => (prev ? { ...prev, assessmentSessionToken: e.target.value } : prev))}
+                                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                                    placeholder="Enter assessment session token"
+                                />
+                                <p className="mt-1 text-[11px] text-slate-500">Current DB Session ID: {editingCandidate.assessmentSessionId ?? "Not created"}</p>
+                            </div>
+
+                            <div>
+                                <label className="mb-1 block text-xs font-semibold text-slate-700">Interview Session ID (Token)</label>
+                                <input
+                                    type="text"
+                                    value={editForm.interviewSessionToken}
+                                    onChange={(e) => setEditForm((prev) => (prev ? { ...prev, interviewSessionToken: e.target.value } : prev))}
+                                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                                    placeholder="Enter interview session token"
+                                />
+                                <p className="mt-1 text-[11px] text-slate-500">Current DB Session ID: {editingCandidate.interviewSessionId ?? "Not created"}</p>
+                            </div>
+
+
+                        </div>
+
+                        {editError ? <p className="mt-3 text-sm text-rose-700">{editError}</p> : null}
+
+                        <div className="mt-5 flex flex-wrap justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={closeEditModal}
+                                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => void saveCandidateEdit()}
+                                disabled={isSavingEdit}
+                                className="rounded-xl border border-indigo-300 bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70"
+                            >
+                                {isSavingEdit ? "Saving..." : "Save Assignment"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {isAddModalOpen ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/55 p-4">
+                    <div className="w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-xs uppercase tracking-[0.16em] text-cyan-700">Add Candidate</p>
+                                <h2 className="mt-1 text-xl font-semibold text-slate-900">Create Candidate Application</h2>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closeAddCandidateModal}
+                                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        <div className="mt-5 grid gap-4 md:grid-cols-2">
+                            <div>
+                                <label className="mb-1 block text-xs font-semibold text-slate-700">Candidate Name</label>
+                                <input
+                                    type="text"
+                                    value={addCandidateForm.candidateName}
+                                    onChange={(e) => setAddCandidateForm((prev) => ({ ...prev, candidateName: e.target.value }))}
+                                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                                    placeholder="Enter candidate full name"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="mb-1 block text-xs font-semibold text-slate-700">Candidate Email</label>
+                                <input
+                                    type="email"
+                                    value={addCandidateForm.candidateEmail}
+                                    onChange={(e) => setAddCandidateForm((prev) => ({ ...prev, candidateEmail: e.target.value }))}
+                                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                                    placeholder="name@example.com"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="mb-1 block text-xs font-semibold text-slate-700">Candidate Phone (Optional)</label>
+                                <input
+                                    type="text"
+                                    value={addCandidateForm.candidatePhone}
+                                    onChange={(e) => setAddCandidateForm((prev) => ({ ...prev, candidatePhone: e.target.value }))}
+                                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                                    placeholder="Phone number"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="mb-1 block text-xs font-semibold text-slate-700">Assessment Slot</label>
+                                <select
+                                    value={addCandidateForm.assessmentSlotId}
+                                    onChange={(e) => setAddCandidateForm((prev) => ({ ...prev, assessmentSlotId: e.target.value }))}
+                                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                                    title="Select assessment slot"
+                                >
+                                    <option value="">Select assessment slot</option>
+                                    {(data?.assessmentSlots ?? []).map((slot) => (
+                                        <option key={slot.id} value={slot.id}>
+                                            {formatSlotOption(slot)}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="md:col-span-2">
+                                <label className="mb-1 block text-xs font-semibold text-slate-700">Interview Slot</label>
+                                <select
+                                    value={addCandidateForm.interviewSlotId}
+                                    onChange={(e) => setAddCandidateForm((prev) => ({ ...prev, interviewSlotId: e.target.value }))}
+                                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                                    title="Select interview slot"
+                                >
+                                    <option value="">Select interview slot</option>
+                                    {(data?.interviewSlots ?? []).map((slot) => (
+                                        <option key={slot.id} value={slot.id}>
+                                            {formatSlotOption(slot)}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {addCandidateError ? <p className="mt-3 text-sm text-rose-700">{addCandidateError}</p> : null}
+
+                        <div className="mt-5 flex flex-wrap justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={closeAddCandidateModal}
+                                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => void createCandidate()}
+                                disabled={isCreatingCandidate}
+                                className="rounded-xl border border-cyan-300 bg-cyan-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70"
+                            >
+                                {isCreatingCandidate ? "Creating..." : "Create Candidate"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

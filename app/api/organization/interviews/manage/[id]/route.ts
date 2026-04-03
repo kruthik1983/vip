@@ -129,11 +129,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             .eq("interview_id", interviewId)
             .order("question_order", { ascending: true });
 
+        // Show the most recently generated application link, even if it is expired/inactive.
+        // This avoids a confusing "No active link" state when the interview previously had one.
         const { data: applicationLink } = await supabaseAdmin
             .from("application_links")
             .select("application_link, application_token, valid_from, valid_until, is_active, created_at")
             .eq("interview_id", interviewId)
-            .eq("is_active", true)
+            .order("created_at", { ascending: false })
+            .limit(1)
             .maybeSingle();
 
         return NextResponse.json({

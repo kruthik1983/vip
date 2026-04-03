@@ -17,6 +17,8 @@ type SlotRow = {
     id: number;
     slot_start_utc: string;
     slot_end_utc: string;
+    max_candidates?: number | null;
+    assigned_candidates?: number | null;
 };
 
 type SessionRow = {
@@ -145,11 +147,11 @@ export async function GET(
                 .order("created_at", { ascending: false }),
             supabaseAdmin
                 .from("assessment_slots")
-                .select("id, slot_start_utc, slot_end_utc")
+                .select("id, slot_start_utc, slot_end_utc, max_candidates, assigned_candidates")
                 .eq("interview_id", interviewId),
             supabaseAdmin
                 .from("interview_slots")
-                .select("id, slot_start_utc, slot_end_utc")
+                .select("id, slot_start_utc, slot_end_utc, max_candidates, assigned_candidates")
                 .eq("interview_id", interviewId),
         ]);
 
@@ -298,13 +300,17 @@ export async function GET(
                 candidatePhone: app.candidate_phone,
                 applicationStatus: app.status,
                 appliedAt: app.created_at,
+                assignedAssessmentSlotId: app.assigned_assessment_slot_id,
+                assignedInterviewSlotId: app.assigned_interview_slot_id,
                 assessmentSlot: buildSlotLabel(assignedAssessmentSlot),
                 interviewSlot: buildSlotLabel(assignedInterviewSlot),
+                assessmentSessionId: assessmentSession?.id ?? null,
                 assessmentCredentialStatus: assessmentSession?.session_token ? "GENERATED" : "PENDING",
                 interviewCredentialStatus: interviewSession?.session_token ? "GENERATED" : "PENDING",
                 assessmentToken: assessmentSession?.session_token ?? null,
                 assessmentValidFrom: assessmentSession?.session_valid_from ?? null,
                 assessmentValidUntil: assessmentSession?.session_valid_until ?? null,
+                interviewSessionId: interviewSession?.id ?? null,
                 interviewToken: interviewSession?.session_token ?? null,
                 interviewValidFrom: interviewSession?.session_valid_from ?? null,
                 interviewValidUntil: interviewSession?.session_valid_until ?? null,
@@ -324,6 +330,22 @@ export async function GET(
                 interviewId,
                 interviewTitle: interviewData.title,
                 totalCandidates: candidates.length,
+                assessmentSlots: assessmentSlots.map((slot) => ({
+                    id: slot.id,
+                    slotStartUtc: slot.slot_start_utc,
+                    slotEndUtc: slot.slot_end_utc,
+                    maxCandidates: slot.max_candidates ?? 0,
+                    assignedCandidates: slot.assigned_candidates ?? 0,
+                    seatsLeft: Math.max(0, (slot.max_candidates ?? 0) - (slot.assigned_candidates ?? 0)),
+                })),
+                interviewSlots: interviewSlots.map((slot) => ({
+                    id: slot.id,
+                    slotStartUtc: slot.slot_start_utc,
+                    slotEndUtc: slot.slot_end_utc,
+                    maxCandidates: slot.max_candidates ?? 0,
+                    assignedCandidates: slot.assigned_candidates ?? 0,
+                    seatsLeft: Math.max(0, (slot.max_candidates ?? 0) - (slot.assigned_candidates ?? 0)),
+                })),
                 candidates,
             },
         });
