@@ -117,13 +117,18 @@ function toDateTimeLocal(value: string) {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-type ApiResult = { success?: boolean; error?: string; message?: string; data?: unknown };
+type ApiResult<TData = unknown> = { success?: boolean; error?: string; message?: string; data?: TData };
 
-async function parseApiResult(response: Response): Promise<ApiResult> {
+type SlotsResponse = {
+    slotType: "assessment" | "interview";
+    slots: InterviewDetails["assessmentSlots"];
+};
+
+async function parseApiResult<TData = unknown>(response: Response): Promise<ApiResult<TData>> {
     const contentType = response.headers.get("content-type") ?? "";
 
     if (contentType.includes("application/json")) {
-        return (await response.json()) as ApiResult;
+        return (await response.json()) as ApiResult<TData>;
     }
 
     const bodyText = await response.text();
@@ -230,16 +235,16 @@ export default function ManageInterviewDetailPage() {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            const result = await parseApiResult(response);
+            const result = await parseApiResult<InterviewDetails>(response);
             if (!mounted) return;
 
-            if (!response.ok || !result.success) {
+            if (!response.ok || !result.success || !result.data) {
                 setErrorMessage(result.error ?? "Failed to load interview details");
                 setIsLoading(false);
                 return;
             }
 
-            const loadedDetails: InterviewDetails = result.data;
+            const loadedDetails = result.data;
             setDetails(loadedDetails);
             setAssessmentQuestions(loadedDetails.assessmentQuestions);
             setFallbackQuestions(loadedDetails.interviewFallbackQuestions);
@@ -480,9 +485,9 @@ export default function ManageInterviewDetailPage() {
                 }),
             });
 
-            const result = await parseApiResult(response);
+            const result = await parseApiResult<SlotsResponse>(response);
 
-            if (!response.ok || !result.success) {
+            if (!response.ok || !result.success || !result.data) {
                 setErrorMessage(result.error ?? "Failed to update slots");
                 return;
             }
