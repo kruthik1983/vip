@@ -117,6 +117,31 @@ function toDateTimeLocal(value: string) {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+type ApiResult = { success?: boolean; error?: string; message?: string; data?: unknown };
+
+async function parseApiResult(response: Response): Promise<ApiResult> {
+    const contentType = response.headers.get("content-type") ?? "";
+
+    if (contentType.includes("application/json")) {
+        return (await response.json()) as ApiResult;
+    }
+
+    const bodyText = await response.text();
+    const isHtml = bodyText.trimStart().startsWith("<!DOCTYPE") || bodyText.trimStart().startsWith("<html");
+
+    if (isHtml) {
+        return {
+            success: false,
+            error: `Unexpected non-JSON response (HTTP ${response.status}). Check API route path and server logs.`,
+        };
+    }
+
+    return {
+        success: false,
+        error: bodyText || `Unexpected response format (HTTP ${response.status})`,
+    };
+}
+
 export default function ManageInterviewDetailPage() {
     const params = useParams<{ id: string }>();
     const router = useRouter();
@@ -205,7 +230,7 @@ export default function ManageInterviewDetailPage() {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            const result = await response.json();
+            const result = await parseApiResult(response);
             if (!mounted) return;
 
             if (!response.ok || !result.success) {
@@ -294,7 +319,7 @@ export default function ManageInterviewDetailPage() {
                 body: JSON.stringify(payload),
             });
 
-            const result = await response.json();
+            const result = await parseApiResult(response);
             if (!response.ok || !result.success) {
                 setErrorMessage(result.error ?? "Failed to save updates");
                 setIsSaving(false);
@@ -455,7 +480,7 @@ export default function ManageInterviewDetailPage() {
                 }),
             });
 
-            const result = await response.json();
+            const result = await parseApiResult(response);
 
             if (!response.ok || !result.success) {
                 setErrorMessage(result.error ?? "Failed to update slots");
